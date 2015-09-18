@@ -93,7 +93,7 @@ def eval_node(A, Y, fmat, feature_list):
         i = 0
         IG_prev = 0.0
         # Threshold emulator loop
-        while True:
+        while i < len(pairs)-1:
             if A[pairs[i][0]]:
                 B[pairs[i][0]] = 1
                 C[pairs[i][0]] = 0
@@ -123,18 +123,19 @@ def eval_node(A, Y, fmat, feature_list):
                     # Check if entropy for any branches is below thresh
                     IG_list.append((IG_curr,f,t,d,B,C,s_B,s_C))
             i += 1
-            # Check end condition
-            if i >= len(pairs)-1:
-                break
 
-    max_val = max(IG[0] for IG in IG_list)
-    IG,f,t,d,B,C,s_B,s_C = [IG for IG in IG_list if IG[0] == max_val][0]
-    #if s_B < 0.2:
-    #    B = None
-    #if s_C < 0.2:
-    #    C = None 
-    #print s_B,s_C
-    return f,t,d,B,C
+    if IG_list == []:
+        print "Boring decision..."
+        return None,None,d,None,None
+    else:
+        max_val = max(IG[0] for IG in IG_list)
+        IG,f,t,d,B,C,s_B,s_C = [IG for IG in IG_list if IG[0] == max_val][0]
+        #if s_B < 0.2:
+        #    B = None
+        #if s_C < 0.2:
+        #    C = None 
+        #print s_B,s_C
+        return f,t,d,B,C
 
 
 TestNode = namedtuple('Node', [ 'f',    # Feature
@@ -144,10 +145,11 @@ TestNode = namedtuple('Node', [ 'f',    # Feature
                                 'rc'])  # Right child
 
 
+@timing
 def build_tree(root, Y, fmat, feature_list):
     btree = [root]
     etree = []
-    depth = 4 
+    depth = 10 
     for i in range(depth):
         index = 2**i
         print "Tree level:",i+1
@@ -174,6 +176,8 @@ def eval_data(t, d):
     c = 0
     while True:
         q = t[c] 
+        if q.f is None:
+            return q.d
         i = feature_list.index(q.f)
         if d[i] < q.t:
             c = q.lc

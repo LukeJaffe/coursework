@@ -133,10 +133,15 @@ def build_tree2(fmat, feature_list):
 #@timing
 def eval_node(A, fmat, feature_list):
     IG_list = []
-    A_count = float(A.count(True))
-    #print A_count
+    #A_count = float(A.count(True))
+    A_count = float(len(Y))
     p_A = prob(A, Y, spam=True)
     e_A = entropy([p_A, 1.0-p_A])
+    if p_A >= 0.5:
+        d = 1
+    else:
+        d = 0
+    #print e_A*(A_count/4601.0)
     for f in feature_list:
         # Sort the relevant column and keep indices
         pairs = [sorted(enumerate(fmat[f]), key=itemgetter(1))][0]
@@ -162,8 +167,11 @@ def eval_node(A, fmat, feature_list):
                     # Calculate scaling factors for child nodes entropy
                     k_B = float(B.count(True))/A_count
                     k_C = float(C.count(True))/A_count
+                    # Calculate scaled entropy for child nodes
+                    s_B = k_B*e_B
+                    s_C = k_C*e_C
                     # Calculate scaled entropy sum for child nodes
-                    e_S = k_B*e_B + k_C*e_C
+                    e_S = s_B+s_C
                     # Calculate information gain for the split
                     IG_curr = e_A - e_S
                     #print IG_curr
@@ -171,17 +179,21 @@ def eval_node(A, fmat, feature_list):
                         break
                     else:
                         IG_prev = IG_curr
-                    IG_list.append((f,t,IG_curr,B,C))
+                    # Check if entropy for any branches is below thresh
+                    IG_list.append((IG_curr,f,t,d,B,C,s_B,s_C))
             i += 1
             # Check end condition
             if i >= len(pairs)-1:
                 break
 
-    max_val = max(IG[2] for IG in IG_list)
-    f,t,IG,B,C = [IG for IG in IG_list if IG[2] == max_val][0]
-    print f,t,IG
-    #print (B|C).count(True)
-    return B,C
+    max_val = max(IG[0] for IG in IG_list)
+    IG,f,t,d,B,C,s_B,s_C = [IG for IG in IG_list if IG[0] == max_val][0]
+    if s_B < 0.1:
+        B = None
+    if s_C < 0.1:
+        C = None 
+    print s_B,s_C
+    return f,t,d,B,C
 
 A = data
 
@@ -192,14 +204,33 @@ A = data
 #eval_node(B, fmat, feature_list)
 #eval_node(C, fmat, feature_list)
 
-Node = namedtuple('Node', ['feature', 'thresh', 'decision', 'lchild', 'rchild'], verbose=True)
+Node = namedtuple('Node', [ 'f',    # Feature
+                            't',    # Threshold
+                            'd',    # Decision
+                            'lc',   # Left child
+                            'rc'])  # Right child
 
 tree = [A]
-d = 4 
+dtree = []
+d = 5 
 for i in range(d):
     index = 2**i
     print "Tree level:",i+1
-    for j in range(index, 2*index):
-        B,C = eval_node(tree[j-1], fmat, feature_list)
-        tree.append(B)
-        tree.append(C)
+    for j in range(index-1, 2*index-1):
+        if tree[j] is None:
+            tree.append(None)
+            tree.append(None)
+            dtree.append(None)
+        else:
+            f,t,d,B,C = eval_node(tree[j], fmat, feature_list)
+            lc,rc = 2*j+1, 2*j+2
+            if B is None:
+                lc = None
+            if C is None:
+                rc = None
+            dtree.append(Node(f=f, t=t, d=d, lc=lc, rc=rc)) 
+            tree.append(B)
+            tree.append(C)
+
+for d in dtree:
+    print d

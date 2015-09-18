@@ -4,6 +4,7 @@ from operator import itemgetter
 from collections import namedtuple
 import time
 
+
 def timing(f):
     def wrap(*args):
         time1 = time.time()
@@ -13,53 +14,49 @@ def timing(f):
         return ret
     return wrap
 
-feature_list = []
 
-fname1 = "/home/jaffe5/Documents/classes/fall_2015/machine_learning/hw1/data/spambase/spambase.names"
-f1 = open(fname1, "r")
-for line in f1:
-    if line.find('|') == -1:
-        if line.strip():
-            line = line.split(':')
-            feature = line[0]
-            desc = line[1] 
-            desc = desc.replace(" ","")
-            desc = desc.split('.')[0]
-            feature_list.append(feature)
+def get_features(fname):
+    feature_list = []
+    f = open(fname, "r")
+    for line in f:
+        if line.find('|') == -1:
+            if line.strip():
+                line = line.split(':')
+                feature = line[0]
+                desc = line[1] 
+                desc = desc.replace(" ","")
+                desc = desc.split('.')[0]
+                feature_list.append(feature)
+    return feature_list
+
 
 # Create dictionary with features as keys
-dmat = []
-fmat = {}
-for feature in feature_list:
-    fmat[feature] = []
+def get_data(fname, feature_list):
+    dmat = []
+    fmat = {}
+    for feature in feature_list:
+        fmat[feature] = []
 
-Y = ""
-num_data = 0
-fname2 = "/home/jaffe5/Documents/classes/fall_2015/machine_learning/hw1/data/spambase/spambase.data"
-f2 = open(fname2, "r")
-for line in f2:
-    num_data += 1
-    x = line.split(',')
-    dmat.append(x[:-1])
-    for i in range(len(x)-1):
-        x[i] = float(x[i])
-        fmat[feature_list[i]].append(x[i])
-    Y += x[-1].strip()
-Y = BitArray(bin=Y)
-data = BitArray(bin=num_data*'1')
+    Y = ""
+    f = open(fname, "r")
+    for line in f:
+        x = line.split(',')
+        Y += x[-1].strip()
+        x = [float(e) for e in x]
+        dmat.append(x[:-1])
+        for i in range(len(x)-1):
+            x[i] = float(x[i])
+            fmat[feature_list[i]].append(x[i])
+    Y = BitArray(bin=Y)
+    return fmat,dmat,Y
 
-thresh = {}
-for key in fmat:
-    # Form a set containing all unique data elements for each feature
-    # This will be the set of thresholds
-    thresh[key] = sorted(list(set(fmat[key])))
-    thresh[key].append(thresh[key][-1]+1)
-
+    
 def prob(A, Y, spam=False):
     if A.count(True) > 0.0:
         return float((A&Y).count(spam))/float(A.count(True))
     else:
         return 0.0
+
 
 def entropy(p):
     s = 0.0
@@ -68,16 +65,19 @@ def entropy(p):
             s += p_qk*log(p_qk, 2)
     return -s
 
+
 def info_gain():
     pass
 
+
 #@timing
-def eval_node(A, fmat, feature_list):
+def eval_node(A, Y, fmat, feature_list):
     IG_list = []
-    #A_count = float(A.count(True))
-    A_count = float(len(Y))
+    A_count = float(A.count(True))
+    #A_count = float(A.len)
     p_A = prob(A, Y, spam=True)
     e_A = entropy([p_A, 1.0-p_A])
+    #print "P(Q):",p_A
     if p_A >= 0.5:
         d = 1
     else:
@@ -129,44 +129,46 @@ def eval_node(A, fmat, feature_list):
 
     max_val = max(IG[0] for IG in IG_list)
     IG,f,t,d,B,C,s_B,s_C = [IG for IG in IG_list if IG[0] == max_val][0]
-    if s_B < 0.5:
-        B = None
-    if s_C < 0.5:
-        C = None 
-    print s_B,s_C
+    #if s_B < 0.2:
+    #    B = None
+    #if s_C < 0.2:
+    #    C = None 
+    #print s_B,s_C
     return f,t,d,B,C
 
-A = data
 
-Node = namedtuple('Node', [ 'f',    # Feature
-                            't',    # Threshold
-                            'd',    # Decision
-                            'lc',   # Left child
-                            'rc'])  # Right child
+TestNode = namedtuple('Node', [ 'f',    # Feature
+                                't',    # Threshold
+                                'd',    # Decision
+                                'lc',   # Left child
+                                'rc'])  # Right child
 
-tree = [A]
-dtree = []
-d = 2 
-for i in range(d):
-    index = 2**i
-    print "Tree level:",i+1
-    for j in range(index-1, 2*index-1):
-        if tree[j] is None:
-            tree.append(None)
-            tree.append(None)
-            dtree.append(None)
-        else:
-            f,t,d,B,C = eval_node(tree[j], fmat, feature_list)
-            lc,rc = 2*j+1, 2*j+2
-            if B is None or (i == d-1):
-                lc = None
-            if C is None or (i == d-1):
-                rc = None
-            dtree.append(Node(f=f, t=t, d=d, lc=lc, rc=rc)) 
-            tree.append(B)
-            tree.append(C)
 
-print "Length of tree:",len(dtree)
+def build_tree(root, Y, fmat, feature_list):
+    btree = [root]
+    etree = []
+    depth = 4 
+    for i in range(depth):
+        index = 2**i
+        print "Tree level:",i+1
+        for j in range(index-1, 2*index-1):
+            if btree[j] is None:
+                btree.append(None)
+                btree.append(None)
+                etree.append(None)
+            else:
+                f,t,d,B,C = eval_node(btree[j], Y, fmat, feature_list)
+                print f,t,d
+                lc,rc = 2*j+1, 2*j+2
+                if B is None or (lc >= (2**depth)-1):
+                    lc = None
+                if C is None or (rc >= (2**depth)-1):
+                    rc = None
+                etree.append(TestNode(f=f, t=t, d=d, lc=lc, rc=rc)) 
+                btree.append(B)
+                btree.append(C)
+    return etree
+
 
 def eval_data(t, d):
     c = 0
@@ -175,20 +177,44 @@ def eval_data(t, d):
         i = feature_list.index(q.f)
         if d[i] < q.t:
             c = q.lc
+            #print "Less:",i, d[i], q.t, c
         else:
             c = q.rc
+            #print "Greater:",i, d[i], q.t, c
         if c is None:
             return q.d
-        print c
+        #print c
 
-for q in dtree:
-    if q is not None:
-        print q.d
 
-total = len(dmat)
-correct = 0
-for i in range(len(dmat)):
-    if eval_data(dtree, dmat[i]) == Y[i]:
-        correct += 1
+def eval_tree(dmat, etree, Y):
+    total = len(dmat)
+    correct = 0
+    for i in range(len(dmat)):
+        if eval_data(etree, dmat[i]) == Y[i]:
+            correct += 1
+    return correct,total
 
-print "Correct:",str(correct)+str('/')+str(total)+' =',float(correct)/float(total)
+
+if __name__=="__main__":
+    # Get feature list
+    fname1 = ("/home/jaffe5/Documents/classes/fall_2015/"+
+                "machine_learning/hw1/data/spambase/spambase.names")
+    feature_list = get_features(fname1)
+
+    # Get data
+    fname2 = ("/home/jaffe5/Documents/classes/fall_2015/"
+                +"machine_learning/hw1/data/spambase/spambase.data")
+    fmat,dmat,Y = get_data(fname2, feature_list)
+
+    # Build the decision tree
+    root = BitArray(bin=len(dmat)*'1')
+    etree = build_tree(root, Y, fmat, feature_list)
+
+    print "Tree:"
+    for i in range(len(etree)):
+        if etree[i] is not None:
+            print i, etree[i]
+
+    # Evaluate the decision tree
+    correct,total = eval_tree(dmat, etree, Y)
+    print "Correct:",str(correct)+str('/')+str(total)+' =',float(correct)/float(total)

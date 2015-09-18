@@ -28,6 +28,7 @@ for line in f1:
             feature_list.append(feature)
 
 # Create dictionary with features as keys
+dmat = []
 fmat = {}
 for feature in feature_list:
     fmat[feature] = []
@@ -39,6 +40,7 @@ f2 = open(fname2, "r")
 for line in f2:
     num_data += 1
     x = line.split(',')
+    dmat.append(x[:-1])
     for i in range(len(x)-1):
         x[i] = float(x[i])
         fmat[feature_list[i]].append(x[i])
@@ -188,9 +190,9 @@ def eval_node(A, fmat, feature_list):
 
     max_val = max(IG[0] for IG in IG_list)
     IG,f,t,d,B,C,s_B,s_C = [IG for IG in IG_list if IG[0] == max_val][0]
-    if s_B < 0.1:
+    if s_B < 0.5:
         B = None
-    if s_C < 0.1:
+    if s_C < 0.5:
         C = None 
     print s_B,s_C
     return f,t,d,B,C
@@ -212,7 +214,7 @@ Node = namedtuple('Node', [ 'f',    # Feature
 
 tree = [A]
 dtree = []
-d = 5 
+d = 3 
 for i in range(d):
     index = 2**i
     print "Tree level:",i+1
@@ -224,13 +226,37 @@ for i in range(d):
         else:
             f,t,d,B,C = eval_node(tree[j], fmat, feature_list)
             lc,rc = 2*j+1, 2*j+2
-            if B is None:
+            if B is None or (i == d-1):
                 lc = None
-            if C is None:
+            if C is None or (i == d-1):
                 rc = None
             dtree.append(Node(f=f, t=t, d=d, lc=lc, rc=rc)) 
             tree.append(B)
             tree.append(C)
 
-for d in dtree:
-    print d
+print "Length of tree:",len(dtree)
+
+def eval_data(t, d):
+    c = 0
+    while True:
+        q = t[c] 
+        i = feature_list.index(q.f)
+        if d[i] < q.t:
+            c = q.lc
+        else:
+            c = q.rc
+        if c is None:
+            return q.d
+        print c
+
+for q in dtree:
+    if q is not None:
+        print q.d
+
+total = len(dmat)
+correct = 0
+for i in range(len(dmat)):
+    if eval_data(dtree, dmat[i]) == Y[i]:
+        correct += 1
+
+print "Correct:",str(correct)+str('/')+str(total)+' =',float(correct)/float(total)

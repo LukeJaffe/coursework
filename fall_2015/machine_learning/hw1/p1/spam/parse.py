@@ -46,8 +46,6 @@ for line in f2:
         fmat[feature_list[i]].append(x[i])
     Y += x[-1].strip()
 Y = BitArray(bin=Y)
-#print Y
-#print "# data elements:",num_data
 data = BitArray(bin=num_data*'1')
 
 thresh = {}
@@ -72,65 +70,6 @@ def entropy(p):
 
 def info_gain():
     pass
-
-@timing
-def build_tree1(fmat, feature_list, thresh):
-    B, C = '', ''
-    e_list = []
-    for f in [feature_list[0]]:
-        print f
-          
-        for t in thresh[f]:
-            #print t,
-            s = ''
-            for i in range(len(fmat[f])):
-                if fmat[f][i] < t:
-                    s += '1'
-                else:
-                    s += '0'
-            B = BitArray(bin=s)
-            #C = B.copy()
-            #C.invert()
-
-            p_true = prob(B, Y, spam=True)
-            p_false = 1.0 - p_true
-            e = entropy([p_true, p_false])
-            if e > 0.0:
-                e_list.append((f,t,e))
-
-    min_val = min(e[2] for e in e_list)
-    print "Min:",[e for e in e_list if e[2] == min_val]
-
-@timing
-def build_tree2(fmat, feature_list):
-    B, C = '', ''
-    e_list = []
-    for f in [feature_list[0]]:
-        print f
-
-        # Sort the relevant column and keep indices
-        pairs = [sorted(enumerate(fmat[f]), key=itemgetter(1))][0]
-
-        s = len(pairs)*'0'
-        B = BitArray(bin=s)
-        i = 0
-        # Threshold emulator loop
-        while True:
-            B[pairs[i][0]] = 1
-            if pairs[i][1] < pairs[i+1][1]:
-                t = pairs[i+1][1]
-                # Evaluate entropy and yield result
-                p_true = prob(B, Y, spam=True)
-                p_false = 1.0 - p_true
-                e = entropy([p_true, p_false])
-                e_list.append((f,t,e))
-            i += 1
-            # Check end condition
-            if i >= len(pairs)-1:
-                break
-
-    min_val = min(e[2] for e in e_list)
-    print "Min:",[e for e in e_list if e[2] == min_val]
 
 #@timing
 def eval_node(A, fmat, feature_list):
@@ -199,13 +138,6 @@ def eval_node(A, fmat, feature_list):
 
 A = data
 
-#build_tree1(fmat, feature_list, thresh)
-#build_tree2(fmat, feature_list)
-
-#B,C = eval_node(A, fmat, feature_list)
-#eval_node(B, fmat, feature_list)
-#eval_node(C, fmat, feature_list)
-
 Node = namedtuple('Node', [ 'f',    # Feature
                             't',    # Threshold
                             'd',    # Decision
@@ -214,7 +146,7 @@ Node = namedtuple('Node', [ 'f',    # Feature
 
 tree = [A]
 dtree = []
-d = 3 
+d = 2 
 for i in range(d):
     index = 2**i
     print "Tree level:",i+1

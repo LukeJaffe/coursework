@@ -1,6 +1,7 @@
 from bitstring import BitArray
 from math import log
 from operator import itemgetter
+from collections import namedtuple
 import time
 
 def timing(f):
@@ -129,10 +130,11 @@ def build_tree2(fmat, feature_list):
     min_val = min(e[2] for e in e_list)
     print "Min:",[e for e in e_list if e[2] == min_val]
 
-@timing
+#@timing
 def eval_node(A, fmat, feature_list):
     IG_list = []
     A_count = float(A.count(True))
+    #print A_count
     p_A = prob(A, Y, spam=True)
     e_A = entropy([p_A, 1.0-p_A])
     for f in feature_list:
@@ -146,39 +148,58 @@ def eval_node(A, fmat, feature_list):
         IG_prev = 0.0
         # Threshold emulator loop
         while True:
-            B[pairs[i][0]] = 1
-            C[pairs[i][0]] = 0
-            if pairs[i][1] < pairs[i+1][1]:
-                t = pairs[i+1][1]
-                # Calculate probability for child nodes
-                p_B = prob(B, Y, spam=True)
-                p_C = prob(C, Y, spam=True)
-                # Calculate entropy for child nodes
-                e_B = entropy([p_B, 1.0-p_B])
-                e_C = entropy([p_C, 1.0-p_C])
-                # Calculate scaling factors for child nodes entropy
-                k_B = float(B.count(True))/A_count
-                k_C = float(C.count(True))/A_count
-                # Calculate scaled entropy sum for child nodes
-                e_S = k_B*e_B + k_C*e_C
-                # Calculate information gain for the split
-                IG_curr = e_A - e_S
-                #print IG_curr
-                if IG_curr < IG_prev:
-                    break
-                else:
-                    IG_prev = IG_curr
-                IG_list.append((f,t,IG_curr))
+            if A[pairs[i][0]]:
+                B[pairs[i][0]] = 1
+                C[pairs[i][0]] = 0
+                if pairs[i][1] < pairs[i+1][1]:
+                    t = pairs[i+1][1]
+                    # Calculate probability for child nodes
+                    p_B = prob(B, Y, spam=True)
+                    p_C = prob(C, Y, spam=True)
+                    # Calculate entropy for child nodes
+                    e_B = entropy([p_B, 1.0-p_B])
+                    e_C = entropy([p_C, 1.0-p_C])
+                    # Calculate scaling factors for child nodes entropy
+                    k_B = float(B.count(True))/A_count
+                    k_C = float(C.count(True))/A_count
+                    # Calculate scaled entropy sum for child nodes
+                    e_S = k_B*e_B + k_C*e_C
+                    # Calculate information gain for the split
+                    IG_curr = e_A - e_S
+                    #print IG_curr
+                    if IG_curr < IG_prev:
+                        break
+                    else:
+                        IG_prev = IG_curr
+                    IG_list.append((f,t,IG_curr,B,C))
             i += 1
             # Check end condition
             if i >= len(pairs)-1:
                 break
 
     max_val = max(IG[2] for IG in IG_list)
-    print "Min:",[IG for IG in IG_list if IG[2] == max_val]
+    f,t,IG,B,C = [IG for IG in IG_list if IG[2] == max_val][0]
+    print f,t,IG
+    #print (B|C).count(True)
+    return B,C
 
 A = data
 
 #build_tree1(fmat, feature_list, thresh)
 #build_tree2(fmat, feature_list)
-eval_node(A, fmat, feature_list)
+
+#B,C = eval_node(A, fmat, feature_list)
+#eval_node(B, fmat, feature_list)
+#eval_node(C, fmat, feature_list)
+
+Node = namedtuple('Node', ['feature', 'thresh', 'decision', 'lchild', 'rchild'], verbose=True)
+
+tree = [A]
+d = 4 
+for i in range(d):
+    index = 2**i
+    print "Tree level:",i+1
+    for j in range(index, 2*index):
+        B,C = eval_node(tree[j-1], fmat, feature_list)
+        tree.append(B)
+        tree.append(C)

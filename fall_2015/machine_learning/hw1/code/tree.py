@@ -178,11 +178,11 @@ class RegressionTree:
         mse_list = []
         A_count = float(A.count(True))
         d = self.mean(A)
-        print "Curr mean:",d
 
         if A_count <= self.count_thresh:
             print "Node has few elements:", A_count
             return None,None,d,None,None
+        print "Curr mse:",self.mse([A])
 
         F = self.X.T
         for f in range(len(F)):
@@ -339,12 +339,22 @@ class HousingLearner:
         self.T = rt.build(3)
 
     def test(self):
+        # Training error
+        total = len(self.X_train)
+        mse = 0.0
+        for i in range(total):
+            mse += ((self.eval_data(self.X_train[i], self.T) - self.Y_train[i])**2.0) 
+        print "unscaled train:",mse
+        mse /= float(total)
+        print "Training MSE:",mse
+        # Testing error
         total = len(self.X_test)
         mse = 0.0
         for i in range(total):
-            mse += (self.eval_data(self.X_test[i], self.T) - self.Y_test[i])**2.0 
+            mse += ((self.eval_data(self.X_test[i], self.T) - self.Y_test[i])**2.0)
+        print "unscaled test:",mse
         mse /= float(total)
-        print "MSE:",mse
+        print "Testing MSE:",mse
 
 
 if __name__=="__main__":
@@ -354,13 +364,13 @@ if __name__=="__main__":
     args = parser.parse_args(sys.argv[1:])
     if args.d is not None:
         if args.d == 'spam':
-            data_file = "data/spambase/spambase.data"
+            data_file = "../data/spambase/spambase.data"
             sl = SpamLearner(data_file)
             sl.train()
             sl.test()
         elif args.d == 'housing':
-            train_file = "data/housing/housing_train.txt"
-            test_file = "data/housing/housing_test.txt"
+            train_file = "../data/housing/housing_train.txt"
+            test_file = "../data/housing/housing_test.txt"
             hl = HousingLearner(train_file, test_file)
             hl.train()
             hl.test()

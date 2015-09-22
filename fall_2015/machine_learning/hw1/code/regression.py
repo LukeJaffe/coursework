@@ -32,7 +32,8 @@ class SpamRegressor:
     def train(self):
         k = 10
         kfolder = KFolder(self.D, k, normalize=True)
-        self.X, self.Y, self.W = [], [], []
+        self.X_train, self.Y_train = [], []
+        self.X_test, self.Y_test, self.W = [], [], []
         for i in range(k):
             # Get data and labels at fold k
             X,Y = kfolder.training(i)
@@ -45,20 +46,40 @@ class SpamRegressor:
             Xi,Yi = kfolder.testing(i)
 
             # Store the results
-            self.X.append(Xi), self.Y.append(Yi), self.W.append(Wi)
+            self.X_train.append(X), self.Y_train.append(Y)
+            self.X_test.append(Xi), self.Y_test.append(Yi), self.W.append(Wi)
 
     def test(self):
-        evaluator = Evaluator(self.X, self.Y, self.W)
+        # Training error
+        print "Training error:"
+        evaluator = Evaluator(self.X_train, self.Y_train, self.W)
+        evaluator.MSE()
+        evaluator.accuracy()
+        # Testing error
+        print "Testing error:"
+        evaluator = Evaluator(self.X_test, self.Y_test, self.W)
         evaluator.MSE()
         evaluator.accuracy()
 
 
 class HousingRegressor: 
-    def __init__(self, train_file, test_file):
+    def __init__(self, train_file, test_file, normalize=True):
         self.X_train, self.Y_train = self.get_data(train_file)
         self.X_test, self.Y_test = self.get_data(test_file)
-        print "Training:", self.X_train.shape, self.Y_train.shape
-        print "Testing:", self.X_test.shape, self.Y_test.shape
+        if normalize:
+            F_train, F_test = self.X_train.T, self.X_test.T
+            for i in range(len(F_train)):
+                # Normalize training data
+                min_val = F_train[i].min()
+                F_train[i] -= min_val
+                max_val = F_train[i].max()
+                F_train[i] /= max_val
+                # Normalize testing data
+                F_test[i] -= min_val
+                F_test[i] /= max_val
+
+        #print "Training:", self.X_train.shape, self.Y_train.shape
+        #print "Testing:", self.X_test.shape, self.Y_test.shape
         
     def get_data(self, data_file):
         X, Y = [], []
@@ -76,8 +97,14 @@ class HousingRegressor:
         self.W = rsolver.solve()
 
     def test(self):
-        evaluator = Evaluator([self.X_test], [self.Y_test], [self.W])
-        evaluator.MSE()
+        # Measure training error
+        print "Training error:"
+        test_eval = Evaluator([self.X_train], [self.Y_train], [self.W])
+        test_eval.MSE()
+        # Measure testing error
+        print "Testing error:"
+        test_eval = Evaluator([self.X_test], [self.Y_test], [self.W])
+        test_eval.MSE()
 
 
 if __name__=="__main__":
@@ -87,15 +114,15 @@ if __name__=="__main__":
     args = parser.parse_args(sys.argv[1:])
     if args.d is not None:
         if args.d == 'spam':
-            data_file = "data/spambase/spambase.data"
+            data_file = "../data/spambase/spambase.data"
             sr = SpamRegressor(data_file)
             sr.train()
             sr.test()
             
         elif args.d == 'housing':
-            train_file = "data/housing/housing_train.txt"
-            test_file = "data/housing/housing_test.txt"
-            hr = HousingRegressor(train_file, test_file)
+            train_file = "../data/housing/housing_train.txt"
+            test_file = "../data/housing/housing_test.txt"
+            hr = HousingRegressor(train_file, test_file, normalize=False)
             hr.train()
             hr.test()
         else:

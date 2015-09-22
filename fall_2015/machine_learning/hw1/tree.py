@@ -1,4 +1,5 @@
 import sys
+import time
 import argparse
 import numpy as np
 from math import exp, log
@@ -15,8 +16,17 @@ TestNode = namedtuple('Node', [ 'f',    # Feature
                                 'lc',   # Left child
                                 'rc'])  # Right child
 
+def timing(f):
+    def wrap(*args):
+        time1 = time.time()
+        ret = f(*args)
+        time2 = time.time()
+        print '%s function took %0.3f ms' % (f.func_name, (time2-time1)*1000.0)
+        return ret
+    return wrap
 
-class Tree(object):
+
+class DecisionTree:
     def __init__(self, X, Y, count_thresh=0):
         self.X = X
         self.Y = Y
@@ -58,14 +68,18 @@ class Tree(object):
         A_count = float(A.count(True))
         p_A = self.prob(A)
         e_A = self.entropy(p_A)
+        # Get decision for node
         if p_A >= 0.5:
             d = 1
         else:
             d = 0
-
-        #print "#elem:",A_count
+        # Check entropy of node
+        if e_A < 0.3:
+            print "Node entropy is low enough:", e_A
+            return None,None,d,None,None
+        # Check # elements
         if A_count < self.count_thresh:
-            #print "Node has few elements."
+            print "Node has few elements:", A_count
             return None,None,d,None,None
 
         F = self.X.T
@@ -102,20 +116,15 @@ class Tree(object):
         else:
             max_val = max(IG[0] for IG in IG_list)
             IG,f,t,d,B,C,s_B,s_C = [IG for IG in IG_list if IG[0] == max_val][0]
-            #if s_B < 0.1:
-            #    B = None
-            #if s_C < 0.1:
-            #    C = None 
-            #print s_B,s_C
             return f,t,d,B,C
 
-    #@timing
+    @timing
     def build(self, depth):
         btree = [self.root]
         etree = []
         for i in range(depth):
             index = 2**i
-            #print "Tree level:",i+1
+            print "Tree level:",i+1
             for j in range(index-1, 2*index-1):
                 if btree[j] is None:
                     btree.append(None)
@@ -135,7 +144,108 @@ class Tree(object):
         return etree
 
 
-class DecisionTree(Tree):
+class RegressionTree:
+    def __init__(self, X, Y, count_thresh=0):
+        self.X = X
+        self.Y = Y
+        self.count_thresh = count_thresh
+        self.root = BitArray(bin=len(self.X)*'1')
+
+    # Predicted value at node A
+    def mean(self, A):
+        t = float(A.count(True))
+        s = sum(self.Y[np.array(A) == 1])
+        if t == 0.0:
+            return 0.0
+        else:
+            return s/float(t)
+
+    # Total square error (no normalization)
+    def tse(self, A):
+        m = self.mean(A)
+        e = self.Y[np.array(A) == 1] 
+        return sum((e-m)**2.0)
+    
+    # Mean square error (normalize by # elements at split node)
+    def mse(self, N):
+        s, t = 0.0, 0.0
+        for n in N:
+            t += float(n.count(True))
+            s += self.tse(n)
+        return s/t
+
+    def split(self, A):
+        mse_list = []
+        A_count = float(A.count(True))
+        d = self.mean(A)
+        print "Curr mean:",d
+
+        if A_count <= self.count_thresh:
+            print "Node has few elements:", A_count
+            return None,None,d,None,None
+
+        F = self.X.T
+        for f in range(len(F)):
+            # Sort the relevant column and keep indices
+            indices = F[f].argsort()
+            pairs = zip(indices, F[f][indices])
+            s = len(pairs)*'0'
+            B = BitArray(bin=s)
+            C = A.copy()
+            i = 0
+            mse_prev = float("inf")
+            # Threshold emulator loop
+            while i < len(pairs)-1:
+                if A[pairs[i][0]]:
+                    B[pairs[i][0]] = 1
+                    C[pairs[i][0]] = 0
+                    if pairs[i][1] < pairs[i+1][1]:
+                        t = pairs[i+1][1]
+                        # Calculate MSE for the split
+                        mse_curr = self.mse([B,C])
+                        #print mse_curr
+                        if mse_curr > mse_prev:
+                            break
+                        else:
+                            mse_prev = mse_curr
+                        # Check if entropy for any branches is below thresh
+                        mse_list.append((mse_curr,f,t,d,B,C))
+                i += 1
+
+        if mse_list == []:
+            print "Boring decision..."
+            return None,None,d,None,None
+        else:
+            min_val = min(mse[0] for mse in mse_list)
+            IG,f,t,d,B,C = [mse for mse in mse_list if mse[0] == min_val][0]
+            return f,t,d,B,C
+
+    @timing
+    def build(self, depth):
+        btree = [self.root]
+        etree = []
+        for i in range(depth):
+            index = 2**i
+            print "Tree level:",i+1
+            for j in range(index-1, 2*index-1):
+                if btree[j] is None:
+                    btree.append(None)
+                    btree.append(None)
+                    etree.append(None)
+                else:
+                    f,t,d,B,C = self.split(btree[j])
+                    #print f,t,d
+                    lc,rc = 2*j+1, 2*j+2
+                    if B is None or (lc >= (2**depth)-1):
+                        lc = None
+                    if C is None or (rc >= (2**depth)-1):
+                        rc = None
+                    etree.append(TestNode(f=f, t=t, d=d, lc=lc, rc=rc)) 
+                    btree.append(B)
+                    btree.append(C)
+        return etree
+
+class SpamLearner:
     def __init__(self, data_file):
         dmat = []
         f = open(data_file, "r")
@@ -178,8 +288,8 @@ class DecisionTree(Tree):
             X,Y = kfolder.training(i)
 
             # Build the decision tree
-            t = Tree(X, Y)
-            Ti = t.build(3)
+            dt = DecisionTree(X, Y)
+            Ti = dt.build(15)
 
             # Get the testing data
             Xi,Yi = kfolder.testing(i)
@@ -193,8 +303,48 @@ class DecisionTree(Tree):
             self.eval_tree(X, Y, T)
 
 
-class RegressionTree(Tree):
-    pass
+class HousingLearner:
+    def __init__(self, train_file, test_file):
+        self.X_train, self.Y_train = self.get_data(train_file)
+        self.X_test, self.Y_test = self.get_data(test_file)
+        print "Training:", self.X_train.shape, self.Y_train.shape
+        print "Testing:", self.X_test.shape, self.Y_test.shape
+        
+    def get_data(self, data_file):
+        X, Y = [], []
+        f = open(data_file, "r")
+        for line in f:
+            if line.strip():
+                x = line.split()
+                x = [float(e) for e in x]
+                X.append( x[:-1] )
+                Y.append( x[-1:] )
+        return np.array(X), np.array(Y)
+
+    def eval_data(self, X, T):
+        c = 0
+        while True:
+            q = T[c] 
+            if q.f is None:
+                return q.d
+            if X[q.f] < q.t:
+                c = q.lc
+            else:
+                c = q.rc
+            if c is None:
+                return q.d
+
+    def train(self):
+        rt = RegressionTree(self.X_train, self.Y_train)
+        self.T = rt.build(3)
+
+    def test(self):
+        total = len(self.X_test)
+        mse = 0.0
+        for i in range(total):
+            mse += (self.eval_data(self.X_test[i], self.T) - self.Y_test[i])**2.0 
+        mse /= float(total)
+        print "MSE:",mse
 
 
 if __name__=="__main__":
@@ -205,15 +355,15 @@ if __name__=="__main__":
     if args.d is not None:
         if args.d == 'spam':
             data_file = "data/spambase/spambase.data"
-            dt = DecisionTree(data_file)
-            dt.train()
-            dt.test()
+            sl = SpamLearner(data_file)
+            sl.train()
+            sl.test()
         elif args.d == 'housing':
             train_file = "data/housing/housing_train.txt"
             test_file = "data/housing/housing_test.txt"
-            rt = RegressionTree#(train_file, test_file)
-            rt.train()
-            rt.test()
+            hl = HousingLearner(train_file, test_file)
+            hl.train()
+            hl.test()
         else:
             print "Unknown dataset."
             sys.exit() 

@@ -1,9 +1,12 @@
-from bitstring import BitArray
-from math import log
+import sys
+import argparse
+import numpy as np
+from math import exp, log
 from operator import itemgetter
 from collections import namedtuple
-import time
-import sys
+from bitstring import BitArray
+
+from kfolder import KFolder
 
 
 TestNode = namedtuple('Node', [ 'f',    # Feature
@@ -13,69 +16,12 @@ TestNode = namedtuple('Node', [ 'f',    # Feature
                                 'rc'])  # Right child
 
 
-def timing(f):
-    def wrap(*args):
-        time1 = time.time()
-        ret = f(*args)
-        time2 = time.time()
-        print '%s function took %0.3f ms' % (f.func_name, (time2-time1)*1000.0)
-        return ret
-    return wrap
-
-
-def get_features(fname):
-    feature_list = []
-    f = open(fname, "r")
-    for line in f:
-        if line.find('|') == -1:
-            if line.strip():
-                line = line.split(':')
-                feature = line[0]
-                desc = line[1] 
-                desc = desc.replace(" ","")
-                desc = desc.split('.')[0]
-                feature_list.append(feature)
-    return feature_list
-
-
-# Create dictionary with features as keys
-def get_data(fname, feature_list):
-    dmat = []
-    fmat = {}
-    for feature in feature_list:
-        fmat[feature] = []
-
-    Y = ""
-    f = open(fname, "r")
-    for line in f:
-        x = line.split(',')
-        Y += x[-1].strip()
-        x = [float(e) for e in x]
-        dmat.append(x[:-1])
-        for i in range(len(x)-1):
-            x[i] = float(x[i])
-            fmat[feature_list[i]].append(x[i])
-    Y = BitArray(bin=Y)
-    return fmat,dmat,Y
-
-
-class MLT:
-    """ Machine Learning Tree class """
-
-    def __init__(self, type, feature_list, fmat, dmat, Y, elem_thresh):
-        if type == 'decision':
-            self.type = 'decision'
-        elif type == 'regression':
-            self.type = 'regression'
-        else:
-            raise Exception("Cannot make an MLT of this type.")
-
-        self.feature_list = feature_list
-        self.fmat = fmat
-        self.dmat = dmat
+class Tree(object):
+    def __init__(self, X, Y, count_thresh=0):
+        self.X = X
         self.Y = Y
-        self.elem_thresh = elem_thresh
-        self.root = BitArray(bin=len(self.dmat)*'1')
+        self.count_thresh = count_thresh
+        self.root = BitArray(bin=len(self.X)*'1')
 
     def prob(self, A):
         if A.count(True) > 0.0:
@@ -107,7 +53,7 @@ class MLT:
         IG = e_A - e_S
         return IG,s_B,s_C
 
-    def eval_node(self, A):
+    def split(self, A):
         IG_list = []
         A_count = float(A.count(True))
         p_A = self.prob(A)
@@ -117,14 +63,16 @@ class MLT:
         else:
             d = 0
 
-        print "#elem:",A_count
-        if A_count < self.elem_thresh:
-            print "Node has few elements."
+        #print "#elem:",A_count
+        if A_count < self.count_thresh:
+            #print "Node has few elements."
             return None,None,d,None,None
 
-        for f in self.feature_list:
+        F = self.X.T
+        for f in range(len(F)):
             # Sort the relevant column and keep indices
-            pairs = [sorted(enumerate(self.fmat[f]), key=itemgetter(1))][0]
+            indices = F[f].argsort()
+            pairs = zip(indices, F[f][indices])
             s = len(pairs)*'0'
             B = BitArray(bin=s)
             C = A.copy()
@@ -149,7 +97,7 @@ class MLT:
                 i += 1
 
         if IG_list == []:
-            print "Boring decision..."
+            #print "Boring decision..."
             return None,None,d,None,None
         else:
             max_val = max(IG[0] for IG in IG_list)
@@ -161,20 +109,20 @@ class MLT:
             #print s_B,s_C
             return f,t,d,B,C
 
-    @timing
-    def build_tree(self, depth):
+    #@timing
+    def build(self, depth):
         btree = [self.root]
         etree = []
         for i in range(depth):
             index = 2**i
-            print "Tree level:",i+1
+            #print "Tree level:",i+1
             for j in range(index-1, 2*index-1):
                 if btree[j] is None:
                     btree.append(None)
                     btree.append(None)
                     etree.append(None)
                 else:
-                    f,t,d,B,C = self.eval_node(btree[j])
+                    f,t,d,B,C = self.split(btree[j])
                     #print f,t,d
                     lc,rc = 2*j+1, 2*j+2
                     if B is None or (lc >= (2**depth)-1):
@@ -184,16 +132,26 @@ class MLT:
                     etree.append(TestNode(f=f, t=t, d=d, lc=lc, rc=rc)) 
                     btree.append(B)
                     btree.append(C)
-        self.etree = etree
+        return etree
 
-    def eval_data(self, d):
+
+class DecisionTree(Tree):
+    def __init__(self, data_file):
+        dmat = []
+        f = open(data_file, "r")
+        for line in f:
+            x = line.split(',')
+            x = [float(e) for e in x]
+            dmat.append(x)
+        self.D = np.array(dmat)
+
+    def eval_data(self, X, T):
         c = 0
         while True:
-            q = self.etree[c] 
+            q = T[c] 
             if q.f is None:
                 return q.d
-            i = self.feature_list.index(q.f)
-            if d[i] < q.t:
+            if X[q.f] < q.t:
                 c = q.lc
                 #print "Less:",i, d[i], q.t, c
             else:
@@ -203,30 +161,61 @@ class MLT:
                 return q.d
             #print c
 
-    def eval_tree(self):
-        total = len(self.dmat)
+    def eval_tree(self, X, Y, T):
+        total = len(X)
         correct = 0
         for i in range(total):
-            if self.eval_data(self.dmat[i]) == self.Y[i]:
+            if self.eval_data(X[i], T) == Y[i]:
                 correct += 1
         print "Correct:",str(correct)+str('/')+str(total)+' =',float(correct)/float(total)
 
+    def train(self):
+        k = 2
+        kfolder = KFolder(self.D, k, normalize=False)
+        self.X, self.Y, self.T = [], [], []
+        for i in range(k):
+            # Get data and labels at fold k
+            X,Y = kfolder.training(i)
+
+            # Build the decision tree
+            t = Tree(X, Y)
+            Ti = t.build(3)
+
+            # Get the testing data
+            Xi,Yi = kfolder.testing(i)
+
+            # Store the results
+            self.X.append(Xi), self.Y.append(Yi), self.T.append(Ti)
+
+    def test(self):
+        for i in range(len(self.T)):
+            X, Y, T = self.X[i], self.Y[i], self.T[i]
+            self.eval_tree(X, Y, T)
+
+
+class RegressionTree(Tree):
+    pass
 
 
 if __name__=="__main__":
-    # Get feature list
-    fname1 = ("/home/jaffe5/Documents/classes/fall_2015/"+
-                "machine_learning/hw1/data/spambase/spambase.names")
-    feature_list = get_features(fname1)
-
-    # Get data
-    fname2 = ("/home/jaffe5/Documents/classes/fall_2015/"
-                +"machine_learning/hw1/data/spambase/spambase.data")
-    fmat,dmat,Y = get_data(fname2, feature_list)
-
-    depth = 3
-    thresh = 100
-
-    mlt = MLT('decision', feature_list, fmat, dmat, Y, thresh)
-    mlt.build_tree(depth)
-    mlt.eval_tree()
+    # Get cmdline args
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-d', help='Run regression on this dataset.')
+    args = parser.parse_args(sys.argv[1:])
+    if args.d is not None:
+        if args.d == 'spam':
+            data_file = "data/spambase/spambase.data"
+            dt = DecisionTree(data_file)
+            dt.train()
+            dt.test()
+        elif args.d == 'housing':
+            train_file = "data/housing/housing_train.txt"
+            test_file = "data/housing/housing_test.txt"
+            rt = RegressionTree#(train_file, test_file)
+            rt.train()
+            rt.test()
+        else:
+            print "Unknown dataset."
+            sys.exit() 
+    else:
+        print "No dataset given."

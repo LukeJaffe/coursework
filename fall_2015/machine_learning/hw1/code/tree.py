@@ -27,7 +27,7 @@ def timing(f):
 
 
 class DecisionTree:
-    def __init__(self, X, Y, count_thresh=0):
+    def __init__(self, X, Y, count_thresh=100):
         self.X = X
         self.Y = Y
         self.count_thresh = count_thresh
@@ -158,7 +158,7 @@ class RegressionTree:
         if t == 0.0:
             return 0.0
         else:
-            return s/float(t)
+            return s/t
 
     # Total square error (no normalization)
     def tse(self, A):
@@ -175,17 +175,19 @@ class RegressionTree:
         return s/t
 
     def split(self, A):
-        mse_list = []
+        gain_list = []
         A_count = float(A.count(True))
         d = self.mean(A)
 
         if A_count <= self.count_thresh:
             print "Node has few elements:", A_count
             return None,None,d,None,None
-        print "Curr mse:",self.mse([A])
+        mse_A = self.mse([A])
+        #print "Curr mse:",mse_A
 
         F = self.X.T
         for f in range(len(F)):
+            #print f
             # Sort the relevant column and keep indices
             indices = F[f].argsort()
             pairs = zip(indices, F[f][indices])
@@ -193,7 +195,7 @@ class RegressionTree:
             B = BitArray(bin=s)
             C = A.copy()
             i = 0
-            mse_prev = float("inf")
+            gain_prev = 0.0
             # Threshold emulator loop
             while i < len(pairs)-1:
                 if A[pairs[i][0]]:
@@ -203,22 +205,35 @@ class RegressionTree:
                         t = pairs[i+1][1]
                         # Calculate MSE for the split
                         mse_curr = self.mse([B,C])
+                        gain_curr = mse_A - mse_curr
+                        if gain_curr < 0:
+                            print gain_curr
                         #print mse_curr
-                        if mse_curr > mse_prev:
+                        if gain_curr < gain_prev:
                             break
                         else:
-                            mse_prev = mse_curr
+                            gain_prev = gain_curr
                         # Check if entropy for any branches is below thresh
-                        mse_list.append((mse_curr,f,t,d,B,C))
+                        gain_list.append((gain_curr,f,t,d,B,C,mse_A,mse_curr))
                 i += 1
 
-        if mse_list == []:
-            print "Boring decision..."
-            return None,None,d,None,None
+        #if B.count(True) == 0 or C.count(True) == 0:
+        #    print "Count of B or C = 0"
+        #    return None,None,d,None,None
+        #if self.mse([B]) > mse_A or self.mse([C]) > mse_A:
+        #    print "MSE of split greater than parent"
+        #    return None,None,d,None,None
+        if gain_list == []:
+            print "mse_list empty"
+        #    return None,None,d,None,None
         else:
-            min_val = min(mse[0] for mse in mse_list)
-            IG,f,t,d,B,C = [mse for mse in mse_list if mse[0] == min_val][0]
-            return f,t,d,B,C
+            max_val = max(mse[0] for mse in gain_list)
+            gain,f,t,d,B,C,mse_A,mse_curr = [mse for mse in gain_list if mse[0] == max_val][0]
+            if mse_curr <= 1.0:
+                return None,None,d,None,None
+            else:
+                print "Gain:",mse_A,mse_curr
+                return f,t,d,B,C
 
     @timing
     def build(self, depth):
@@ -278,29 +293,41 @@ class SpamLearner:
             if self.eval_data(X[i], T) == Y[i]:
                 correct += 1
         print "Correct:",str(correct)+str('/')+str(total)+' =',float(correct)/float(total)
+        return float(correct)/float(total)
 
     def train(self):
-        k = 2
+        k = 10
         kfolder = KFolder(self.D, k, normalize=False)
-        self.X, self.Y, self.T = [], [], []
-        for i in range(k):
+        self.X_train, self.Y_train = [], []
+        self.X_test, self.Y_test, self.T = [], [], []
+        for i in range(1):#k
             # Get data and labels at fold k
             X,Y = kfolder.training(i)
 
             # Build the decision tree
             dt = DecisionTree(X, Y)
-            Ti = dt.build(15)
+            Ti = dt.build(6)
 
             # Get the testing data
             Xi,Yi = kfolder.testing(i)
 
             # Store the results
-            self.X.append(Xi), self.Y.append(Yi), self.T.append(Ti)
+            self.X_train.append(X), self.Y_train.append(Y)
+            self.X_test.append(Xi), self.Y_test.append(Yi), self.T.append(Ti)
 
     def test(self):
-        for i in range(len(self.T)):
-            X, Y, T = self.X[i], self.Y[i], self.T[i]
-            self.eval_tree(X, Y, T)
+        # Training error
+        train_avg = 0.0
+        for i in range(1):#range(len(self.T)):
+            X, Y, T = self.X_train[i], self.Y_train[i], self.T[i]
+            train_avg += self.eval_tree(X, Y, T)
+        print "Training error: %f correct" % (train_avg/float(len(self.T))) 
+        # Testing error
+        test_avg = 0.0
+        for i in range(1):#range(len(self.T)):
+            X, Y, T = self.X_test[i], self.Y_test[i], self.T[i]
+            test_avg += self.eval_tree(X, Y, T)
+        print "Testing error: %f correct" % (test_avg/float(len(self.T)))
 
 
 class HousingLearner:
@@ -336,15 +363,16 @@ class HousingLearner:
 
     def train(self):
         rt = RegressionTree(self.X_train, self.Y_train)
-        self.T = rt.build(3)
+        self.T = rt.build(5)
 
     def test(self):
         # Training error
         total = len(self.X_train)
         mse = 0.0
         for i in range(total):
+            #print (self.eval_data(self.X_train[i], self.T) - self.Y_train[i])**2.0,
             mse += ((self.eval_data(self.X_train[i], self.T) - self.Y_train[i])**2.0) 
-        print "unscaled train:",mse
+        #print "unnormalized:",mse
         mse /= float(total)
         print "Training MSE:",mse
         # Testing error
@@ -352,7 +380,6 @@ class HousingLearner:
         mse = 0.0
         for i in range(total):
             mse += ((self.eval_data(self.X_test[i], self.T) - self.Y_test[i])**2.0)
-        print "unscaled test:",mse
         mse /= float(total)
         print "Testing MSE:",mse
 

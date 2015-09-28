@@ -1,0 +1,199 @@
+\documentclass{report}
+\usepackage{IEEEtrantools}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage[margin=0.75in]{geometry}
+
+\setlength{\parindent}{0pt}
+
+\newcommand{\horrule}[1]{\rule{\linewidth}{#1}}
+\title{	\vspace{-2in}
+\normalfont \normalsize 
+\textsc{\Huge EECE -- 7204 \\Applied Probability and Stochastic \\ [10 pt]Processes} \\ [50pt] 
+\horrule{0.5pt} \\[0.4cm] 
+\huge Homework \# 1   \\ [15pt]
+\normalsize Submission date: September 23, 2014
+\horrule{2pt} \\[0.5cm] 
+}
+\author{ \vspace{3in}\huge \textbf{Name: Jaffe-Luke} \\ 
+[55pt] \horrule{2pt} \\[0.5cm] }
+\date{\textbf{Grade: }}
+\begin{document}
+
+\maketitle
+\newpage
+
+\textbf{1.12}
+\newline
+
+(a) Consider the probability space ($\Omega$,$F$,$P$)
+
+i. The probability of an event $A$, $P$[$A$] $>=$ 0
+\newline -This means the probability of any event occuring is non-negative
+
+ii. The probability of the sample space, $P$[$W$] = 1
+\newline -This means the probability of a certain event, or one which composes the whole sample space, is 1
+
+iii. For two events $A$ and $B$, $P$[$A$$\cup$$B$] = $P[A]$ + $P[B]$, if $A$$\cap$$B$ = $\emptyset$
+\newline -This means that if two sets share no elements in common, then the probability of both occurring is the same as the sum of each occurring individually. This can be extended to any countable sequence of disjoint events.
+\newline
+
+(b) Where $A$ and $B$ are arbitrary events in the field $F$
+
+$A$$\cup$$B$ = $A$$\cap$$\overline{B}$ + $B$
+
+$P$[$A$$\cup$$B$] = $P$[$A$$\cap$$\overline{B}$] + $P[B]$
+
+$P$[$A$$\cap$$\overline{B}$] = P[$A$] - $P$[$A$$\cap$$B$]
+
+$P$[$A$$\cup$$B$] = $P[A]$ + $P[B]$ - $P$[$A$$\cap$$B$]
+\newline
+
+\textbf{1.28}
+
+Since we already know the first toss is a 2, the problem can be re-written as: what is the probability of obtaining the sum 5 on two tosses?
+
+There are 36 equally probable outcomes of rolling two dice, and we must find out how many sum to 5.
+\newline
+(1,1), (1,2), (1,3), \textbf{(1,4)}, (1,5), (1,6) \newline
+(2,1), (2,2), \textbf{(2,3)}, (2,4), (2,5), (2,6) \newline
+(3,1), \textbf{(3,2)}, (3,3), (3,4), (3,5), (3,6) \newline
+\textbf{(4,1)}, (4,2), (4,3), (4,4), (4,5), (4,6) \newline
+(5,1), (5,2), (5,3), (5,4), (5,5), (5,6) \newline
+(6,1), (6,2), (6,3), (6,4), (6,5), (6,6) \newline
+
+Since 4 of these outcomes sum to 5, we can see that the probability is 4/36 = 1/9.
+\newline
+
+\textbf{1.30}
+
+$P[D]$ = 0.001
+\newline
+$P[\overline{D}] = 1-P[D] = 0.999$
+
+Test positive event for $D$ is $T$.
+
+$P[T|D]$ = 1
+
+$P[T|\overline{D}]$ = 0.005
+\newline
+
+$P[D|T] = \frac{P[T|D]*P[D]}{P[T|D]*P[D] + P[T|\overline{D}]*P[\overline{D}]}$
+\newline
+
+$ = \frac{1*0.001}{1*0.001 + 0.005*0.999}$
+\newline
+
+$ = 0.167 \approx 0.17$
+\newline
+
+
+\textbf{1.33}
+
+Event A means the student knows the answer.
+
+Event B means the student has answered correctly.
+\newline
+
+$P[A|B] = \frac{P[B|A]P[A]}{P[B]}$
+\newline
+
+$P[B|A] = 1$
+\newline
+$P[A] = p$
+\newline
+$P[B] = p + \frac{(1-p)}{m}$
+\newline
+
+$P[A|B] = \frac{mp}{mp-p+1}$
+\newline
+
+\textbf{1.49}
+
+The probability that the smuggler will not be caught is the probability that the inspector finds 0 diamonds in the sample of 100 beads.
+\newline
+
+$P(x=0)$ = 
+${100 \choose 0} * p^{0} * {1-p}^{100-0}$
+\newline
+$ = {1-p}^{100}$
+\newline
+$ = ({1 - \frac{1}{1000}})^{100}$
+\newline
+$ = 0.9048$
+
+The probability that the smuggler is not caught is therefore: 
+\newline
+$1-P(x=0) = 1 - 0.9048$ 
+\newline
+$ = 0.0952$
+\newline
+
+\textbf{1.55}
+
+$P[M] = 0.1$
+
+$P[B] = 0.05$
+\newline
+
+$P[without] = P[B] = 0.05$
+\newline
+
+Since the failure of the system components is independent: \newline
+$P[MB] = P[M]*P[B]$ \newline
+The probability of both components failing is: \newline
+$P[with] = P[MB] = P[M]*P[B] = 0.1*0.05 = 0.005$
+\newline
+
+Since $P[with] < P[without]$, the monitor system is advantageous.
+\newline
+
+\textbf{1.66}
+
+Let us first answer the following question: \newline
+What is the probability that out of N people, two have the same birthday?
+\newline
+
+P[2] = 1/365 \newline
+
+We can also ask the question: what is the probability that out of N people,
+two do not have the same birthday? We will call this Q[N]
+
+Q[2] = 1 - 1/365
+
+Q[3] = (1- 1/365)*(1 - 1/365)
+
+P[3] = 1 - Q[3] = 1 - (1- 1/365)*(1 - 1/365)
+\newline
+
+Let us find the general Q[N]: \newline
+$Q[N] = \prod\limits_{i=1}^{N-1} 1 - i/365$
+\newline
+
+The general formula for P[n]: \newline
+$P[N] = 1 - Q[N]$
+\newline
+
+The following python script was used to find the answer:
+
+1 def bday(n):                        \newline
+2$\hspace{20pt}$    s = 1.0                         \newline
+3$\hspace{20pt}$    for i in range(1,n):            \newline
+4$\hspace{40pt}$       s *= 1.0 - float(i)/365.0   \newline
+5$\hspace{20pt}$    return 1.0 - s                  \newline
+6 \newline
+7 for i in range(25):                             \newline
+8$\hspace{20pt}$    p = bday(i)                                 \newline
+9$\hspace{20pt}$    if p $>$ 0.5:                                 \newline
+10$\hspace{40pt}$        print "Number of people:", i            \newline
+11$\hspace{40pt}$        print "P[2 have same birthday] =", p    \newline
+12$\hspace{40pt}$        break                                   \newline
+
+The results: \newline
+Number of people: 23 \newline
+P[2 have same birthday] = 0.507297234324
+
+
+
+\end{document}

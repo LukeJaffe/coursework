@@ -14,7 +14,7 @@ for i in range(8):
     #final.append([np.zeros(3), 0.0])
 
 l = 0.02
-it = 100000
+it = 20002
 for i in range(it):
     for x in X:
         # Propagate the inputs to hidden layer
@@ -46,8 +46,10 @@ for i in range(it):
             hidden[j][0] += l*err*x#Oj
             hidden[j][1] += l*err
         # Print results
-        if i%1000 == 0:
-            #print np.round(final_outputs), x
-            print np.round(hidden_outputs)
+        if i%20000 == 0:
+            print final_outputs, x
+            #print np.round(hidden_outputs)
+        if i%20001 == 0:
+            print np.round(final_outputs), x
     if i%1000 == 0:
-        print
+        print i

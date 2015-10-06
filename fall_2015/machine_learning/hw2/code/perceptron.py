@@ -30,7 +30,7 @@ class Perceptron:
             W += r*s
         #print iterations 
         print "\nClassifier weights:",W
-        print "\nNormalized with threshold:", W/len(self.data.data())
+        print "\nNormalized with threshold:", -W/W[0]
 
 if __name__=="__main__":
     data_file = "../data/perceptron/perceptronData.txt"

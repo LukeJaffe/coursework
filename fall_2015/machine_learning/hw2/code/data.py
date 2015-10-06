@@ -11,6 +11,10 @@ class Data:
                 X.append( x[:-1] )
                 Y.append( x[-1:] )
         self.X, self.Y = np.array(X), np.array(Y)
+        h,w = self.X.shape
+        nX = np.ones((h,w+1))
+        nX[:,1:] = self.X
+        self.X = nX
 
     def normalize(self):
         pass

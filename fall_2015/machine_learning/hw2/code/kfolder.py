@@ -36,10 +36,14 @@ class KFolder:
                 t = self.data["training"]["data"][i]
                 for j in range(len(d)):
                     # Normalize the training data
-                    min_val = d[j].min()
-                    d[j] -= min_val
-                    max_val = d[j].max()
-                    d[j] /= max_val
+                    if d[j].min() == d[j].max():
+                        min_val = 0.0
+                        max_val = d[j].max()
+                    else:
+                        min_val = d[j].min()
+                        d[j] -= min_val
+                        max_val = d[j].max()
+                        d[j] /= max_val
                     # Normalize the testing data with the same parameters
                     t[j] -= min_val
                     t[j] /= max_val

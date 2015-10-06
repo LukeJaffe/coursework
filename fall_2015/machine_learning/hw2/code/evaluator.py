@@ -48,11 +48,12 @@ class Evaluator:
         print "Average accuracy:", acc
 
     def confusion(self):
-        TP, FP, FN, TN = 0, 0, 0, 0
-        for i in range(len(self.X)):
+        tTPR, tFPR = 0.0, 0.0
+        k = len(self.X)
+        for i in range(k):
             # Test solution against the testing data
             Xi, Yi, Wi = self.X[i], self.Y[i], self.W[i]
-            ktotal = len(Yi)
+            TP, FP, FN, TN = 0, 0, 0, 0
             for j in range(len(Xi)):
                 s = np.dot(Xi[j], Wi)
                 if s >= 0.5:
@@ -67,9 +68,12 @@ class Evaluator:
                     FN += 1
                 elif s == 0.0 and Yi[j] == 0.0:
                     TN += 1
-        print "TP:",TP,"FP:",FP
-        print "TN:",TN,"FN:",FN
-        #print "Correct:",str(kcorrect)+str('/')+str(ktotal)+' =',kacc
+            TPR = float(TP) / (float(TP)+float(FN)) 
+            FPR = float(FP) / (float(FP)+float(TN)) 
+            tTPR += TPR
+            tFPR += FPR
+            print "Fold %d:" % (i+1),TPR, FPR
+        print "Total:", tTPR/float(k), tFPR/float(k)
 
     def roc(self):
         X,Y,W = self.X[0], self.Y[0], self.W[0] 

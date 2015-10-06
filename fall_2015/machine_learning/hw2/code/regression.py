@@ -36,11 +36,11 @@ class SpamRegressor:
         self.D[:,1:] = dmat
 
     def train(self, l, method='normal'):
-        k = 2
+        k = 10
         kfolder = KFolder(self.D, k, normalize=True)
         self.X_train, self.Y_train = [], []
         self.X_test, self.Y_test, self.W = [], [], []
-        for i in range(1):
+        for i in range(k):
             # Get data and labels at fold k
             X,Y = kfolder.training(i)
 
@@ -68,7 +68,7 @@ class SpamRegressor:
         evaluator = Evaluator(self.X_train, self.Y_train, self.W)
         #evaluator.MSE()
         evaluator.accuracy()
-        evaluator.confusion()
+        #evaluator.confusion()
         # Testing error
         print "Testing error:"
         evaluator = Evaluator(self.X_test, self.Y_test, self.W)

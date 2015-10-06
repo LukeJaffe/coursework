@@ -36,7 +36,6 @@ class GradientDescent:
                 print mse/float(len(self.X))
         return W
 
-    @timing
     def linreg_stoch1(self, r=1e-6):
         W = np.random.random(len(self.X.T))
         for i in range(20000001):

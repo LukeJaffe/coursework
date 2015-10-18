@@ -9,7 +9,7 @@ class Bin:
     def __init__(self, minval, maxval):
         self.minval = minval
         self.maxval = maxval
-        self.vals = np.array([])
+        self.vals = []
 
     def check(self, val):
         if self.minval <= val < self.maxval:
@@ -18,7 +18,7 @@ class Bin:
             return False
 
     def put(self, val, label):
-        self.vals = np.append(self.vals, np.array([val, label]))
+        self.vals.append(np.array([val, label]))
 
 
 class Histogram:
@@ -27,17 +27,24 @@ class Histogram:
         for i in range(len(vals)-1):
             self.bins.append(Bin(vals[i], vals[i+1]))
 
-    def prob(self, X, Y):
-        # Iterate through features
-        for i,f in enumerate(X.T):
-            # Iterate through each datapoint in feature
-            for j,x in enumerate(f):
-                # Iterate through bins
-                for b in self.bins:
-                    if b.check(x):
-                        b.put(x,Y.T[i][j])
-                    
+    def place(self, i, f, Y):
+        # Iterate through each datapoint in feature
+        for j,x in enumerate(f):
+            # Iterate through bins
+            for b in self.bins:
+                if b.check(x):
+                    b.put(x,Y[i])
 
+    def prob(self):
+        for b in self.bins: 
+            b.vals = np.array(b.vals)
+            #print b.vals.T.shape
+            if len(b.vals):
+                a = b.vals.T[1]
+                print a
+             
+
+                    
 
 
 class NB:
@@ -77,7 +84,7 @@ class NB:
                 mean[i].append(f.mean())
         return mean
 
-    def histogram(self, X, Y, b):
+    def histogram(self, X, Y):
         no = np.array([x[(Y==0.0).T[0]] for x in X.T]).T
         yes = np.array([x[(Y==1.0).T[0]] for x in X.T]).T
         histograms = []
@@ -94,8 +101,10 @@ class NB:
                                         meanval, 
                                         max(nomean, yesmean), 
                                         maxval]))
-            # Calculate class conditional probability
-            histograms[i].prob(X, Y)
+
+            print '\n',i
+            histograms[i].place(i, X.T[i].copy(), Y.copy())
+            histograms[i].prob()
         
 
 

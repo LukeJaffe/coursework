@@ -5,7 +5,10 @@ class KFolder:
         self.k = k
         self.X = []
         if shuffle:
+            print "shuffling"
             np.random.shuffle(X)
+        else:
+            print "not shuffling"
         tot_len = len(X)
         fold_len = tot_len/k
         #for i in range(0, tot_len, fold_len):
@@ -18,6 +21,7 @@ class KFolder:
                     self.X[j%k].append(X[j])
         for i in range(k):
             self.X[i] = np.array(self.X[i])
+            #print self.X[i].T[-1]
 
         # Prepare the data dictionary
         training = {"data":[], "labels":[]}

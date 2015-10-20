@@ -1,6 +1,7 @@
 import sys
 import argparse
 import numpy as np
+import matplotlib.pyplot as plt
 
 from kfolder import KFolder
 from evaluator import Evaluator
@@ -157,7 +158,7 @@ class NB:
         kfolder = KFolder(self.D, k, normalize=True, shuffle=False)
         self.X_train, self.Y_train = [], []
         self.X_test, self.Y_test, self.P = [], [], []
-        for i in range(k):
+        for i in range(1):
             # Get data and labels at fold k
             X,Y = kfolder.training(i)
 
@@ -193,39 +194,11 @@ class NB:
         e = -((x-mean)**2)/(2*var**2)
         return c*np.exp(e)
 
-    def predict_gaussian(self, Xi, Yi, Pi):
-        c = 0
-        m, d = len(Xi), len(Xi.T)
+    def predict_gaussian(self, Xi, Pi, j, k):
         mean,var,p = Pi
-        for j in range(m):
-            e = [1.0, 1.0]
-            for k in range(d):
-                e[0] *= self.uvg(Xi[j][k], mean[0][k], var[0][k]) 
-                e[1] *= self.uvg(Xi[j][k], mean[1][k], var[1][k]) 
-            l0 = e[0]*p[0]
-            l1 = e[1]*p[1]
-            y = 1 if l1>l0 else 0
-            c += 1 if y==Yi[j] else 0
-        acc = float(c)/float(m)
-        print c,"/",m,":",acc
-        return acc
-
-    def predict_bernoulli_old(self, Xi, Yi, Pi):
-        c = 0
-        m, d = len(Xi), len(Xi.T)
-        mean,e0,e1,p = Pi
-        for j in range(m):
-            e = [1.0, 1.0]
-            for k in range(d):
-                e[0] *= (((Xi[j][k]>=mean[k])*e0[k])+((Xi[j][k]<mean[k])*(1-e0[k]))) 
-                e[1] *= (((Xi[j][k]>=mean[k])*e1[k])+((Xi[j][k]<mean[k])*(1-e1[k]))) 
-            l0 = e[0]*p[0]
-            l1 = e[1]*p[1]
-            y = 1 if l1>l0 else 0
-            c += 1 if y==Yi[j] else 0
-        acc = float(c)/float(m)
-        print c,"/",m,":",acc
-        return acc
+        e0 = self.uvg(Xi[j][k], mean[0][k], var[0][k]) 
+        e1 = self.uvg(Xi[j][k], mean[1][k], var[1][k]) 
+        return e0, e1
 
     def predict_bernoulli(self, Xi, Pi, j, k):
         mean,e0,e1,p = Pi
@@ -234,29 +207,11 @@ class NB:
         e[1] = (((Xi[j][k]>=mean[k])*e1[k])+((Xi[j][k]<mean[k])*(1-e1[k]))) 
         return e[0], e[1]
 
-    def predict_histogram_old(self, Xi, Yi, Pi):
-        c = 0
-        m, d = len(Xi), len(Xi.T)
-        histograms,p = Pi
-        for j in range(m):
-            e = [1.0, 1.0]
-            for k in range(d):
-                e0, e1 = histograms[k].prob(Xi[j][k])
-                e[0] *= e0 
-                e[1] *= e1
-            l0 = e[0]*p[0]
-            l1 = e[1]*p[1]
-            y = 1 if l1>l0 else 0
-            c += 1 if y==Yi[j] else 0
-        acc = float(c)/float(m)
-        print c,"/",m,":",acc
-        return acc
-
     def predict_histogram(self, Xi, Pi, j, k):
         histograms,p = Pi
         return histograms[k].prob(Xi[j][k])
 
-    def predict(self, Xi, Yi, Pi, method):
+    def predict(self, Xi, Yi, Pi, method, error=True, roc=True):
         if method == 'gaussian':
             predict_func = self.predict_gaussian
         elif method == 'bernoulli':
@@ -269,24 +224,64 @@ class NB:
         p = [float(len(Yi[Yi==0.0])) / float(len(Yi))]
         p.append(1.0-p[0])
         # Calculate the likelihood
+        likelihood = []
         for j in range(m):
             e = [1.0, 1.0]
             for k in range(d):
                 e0, e1 = predict_func(Xi, Pi, j, k)
                 e[0] *= e0 
                 e[1] *= e1
-            l0 = e[0]*p[0]
-            l1 = e[1]*p[1]
-            y = 1 if l1>l0 else 0
-            c += 1 if y==Yi[j] else 0
-        acc = float(c)/float(m)
-        print c,"/",m,":",acc
-        return acc
+            likelihood.append((e[0]*p[0], e[1]*p[1]))
+        if roc:
+            thresh = []
+            for i,l in enumerate(likelihood):
+                thresh.append( np.log(l[1]/l[0]) )
+            TPR, FPR = [], []
+            for num,t in enumerate(sorted(thresh)):
+                print num,"/",len(thresh)
+                tp, tn, fp, fn = 0, 0, 0, 0
+                for i,l in enumerate(likelihood):
+                    y = 1 if np.log(l[1]/l[0])>t else 0
+                    if y==Yi[i]==1.0:   tp += 1
+                    elif y==Yi[i]==0.0: tn += 1
+                    elif y>Yi[i]:       fp += 1
+                    else:               fn += 1
+                tpr = float(tp) / (float(tp)+float(fn)) 
+                fpr = float(fp) / (float(fp)+float(tn)) 
+                TPR.append(tpr), FPR.append(fpr)
+            plt.plot(FPR, TPR, label='label')
+            plt.axis([0.0,1.0,0.0,1.0])
+            s = 0.0 
+            for k in range(2,m):
+                s += ((FPR[k]-FPR[k-1])*(TPR[k]+TPR[k-1])) 
+            s *= 0.5
+            print abs(s)
+            return 0.0
 
-    def evaluate(self, X, Y, P, method):
+        elif error:
+            tp, tn, fp, fn = 0, 0, 0, 0
+            for i,l in enumerate(likelihood):
+                y = 1 if l[1]>l[0] else 0
+                if y==Yi[i]==1.0:   tp += 1
+                elif y==Yi[i]==0.0: tn += 1
+                elif y>Yi[i]:       fp += 1
+                else:               fn += 1
+            tpr = float(tp) / (float(tp)+float(fn)) 
+            fpr = float(fp) / (float(fp)+float(tn)) 
+            err = float(fp+fn) / float(m)
+            return err
+        else:
+            for i,l in enumerate(likelihood):
+                y = 1 if l[1]>l[0] else 0
+                c += 1 if y==Yi[i] else 0
+            acc = float(c)/float(m)
+            print c,"/",m,":",acc
+            return acc
+
+    def evaluate(self, X, Y, P, method, roc=False):
         tacc = 0.0
         for i in range(len(X)):
-            acc = self.predict(X[i], Y[i], P[i], method)
+            acc = self.predict(X[i], Y[i], P[i], method, roc=roc)
             tacc += acc
         print "total:",tacc/float(len(X))
 
@@ -296,7 +291,14 @@ class NB:
         print "Training accuracy:"
         evaluator = self.evaluate(self.X_train, self.Y_train, self.P, method)
         print "Testing accuracy:"
-        evaluator = self.evaluate(self.X_test, self.Y_test, self.P, method)
+        evaluator = self.evaluate(self.X_test, self.Y_test, self.P, method, roc=True)
+        # Plot the ROC curve
+        plt.title('Comparison of ROC for Regression Methods on Spam Data')
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        legend = plt.legend(loc='lower right', shadow=True)
+        plt.show()
+
 
 if __name__=="__main__":
     # Get cmdline args

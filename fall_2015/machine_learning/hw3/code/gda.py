@@ -108,13 +108,16 @@ class GDA:
 
 if __name__=="__main__":
     # Get cmdline args
-    #parser = argparse.ArgumentParser()
-    #parser.add_argument('-d', help='Run regression on this dataset.')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-s', help='Shared or separate coveriance matrices.')
     #parser.add_argument('-r', help='Lambda parameter for ridge regression.')
     #parser.add_argument('-m', help='Method of regression. {normal, descent}')
-    #args = parser.parse_args(sys.argv[1:])
+    args = parser.parse_args(sys.argv[1:])
     data_file = "../data/spambase/spambase.data"
     gda = GDA(data_file)
-    shared = True
+    if int(args.s) == 0:
+        shared = False
+    if int(args.s) == 1:
+        shared = True
     gda.train(shared=shared)
     gda.test(shared=shared)

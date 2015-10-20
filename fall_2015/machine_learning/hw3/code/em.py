@@ -58,7 +58,7 @@ class EMGM:
             sigma /= mu_bot
             sigma += np.eye(d)*1e-5
             self.model[i] = Gaussian(mu, sigma, pi)
-            print "Gaussian",i,":",sum(self.Z[i]), self.model[i].mu
+            print "Gaussian",i,":",sum(self.Z[i]), self.model[i].mu, self.model[i].sigma
 
     def expectation(self):
         m,d = self.D.shape
@@ -78,7 +78,7 @@ class EMGM:
 if __name__=="__main__":
     fname1 = '../data/mog/2gaussian.txt'
     fname2 = '../data/mog/3gaussian.txt'
-    emgm = EMGM(fname1, 2) 
+    emgm = EMGM(fname2, 3) 
     for i in range(100):
         emgm.maximization()
         emgm.expectation()

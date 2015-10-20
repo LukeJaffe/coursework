@@ -238,7 +238,7 @@ class NB:
                 thresh.append( np.log(l[1]/l[0]) )
             TPR, FPR = [], []
             for num,t in enumerate(sorted(thresh)):
-                print num,"/",len(thresh)
+                #print num,"/",len(thresh)
                 tp, tn, fp, fn = 0, 0, 0, 0
                 for i,l in enumerate(likelihood):
                     y = 1 if np.log(l[1]/l[0])>t else 0
@@ -258,7 +258,7 @@ class NB:
             print abs(s)
             return 0.0
 
-        elif error:
+        if error:
             tp, tn, fp, fn = 0, 0, 0, 0
             for i,l in enumerate(likelihood):
                 y = 1 if l[1]>l[0] else 0
@@ -270,7 +270,7 @@ class NB:
             fpr = float(fp) / (float(fp)+float(tn)) 
             err = float(fp+fn) / float(m)
             return err
-        else:
+        if True:
             for i,l in enumerate(likelihood):
                 y = 1 if l[1]>l[0] else 0
                 c += 1 if y==Yi[i] else 0

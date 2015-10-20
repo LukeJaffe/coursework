@@ -115,6 +115,6 @@ if __name__=="__main__":
     #args = parser.parse_args(sys.argv[1:])
     data_file = "../data/spambase/spambase.data"
     gda = GDA(data_file)
-    shared = False
+    shared = True
     gda.train(shared=shared)
     gda.test(shared=shared)

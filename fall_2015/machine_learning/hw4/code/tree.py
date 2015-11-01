@@ -258,13 +258,10 @@ class SpamLearner:
                 return q.d
             if X[q.f] < q.t:
                 c = q.lc
-                #print "Less:",i, d[i], q.t, c
             else:
                 c = q.rc
-                #print "Greater:",i, d[i], q.t, c
             if c is None:
                 return q.d
-            #print c
 
     def eval_tree(self, X, Y, T):
         total = len(X)

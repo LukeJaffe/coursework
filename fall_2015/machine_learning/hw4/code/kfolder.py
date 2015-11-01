@@ -1,14 +1,24 @@
 import numpy as np
 
 class KFolder:
-    def __init__(self, X, k, normalize=True):
+    def __init__(self, X, k, normalize=True, shuffle=True):
         self.k = k
         self.X = []
-        np.random.shuffle(X)
+        if shuffle:
+            np.random.shuffle(X)
         tot_len = len(X)
         fold_len = tot_len/k
-        for i in range(0, tot_len, fold_len):
-            self.X.append(X[i:i+fold_len])
+        #for i in range(0, tot_len, fold_len):
+        #    self.X.append(X[i:i+fold_len])
+        for i in range(k):
+            self.X.append([])
+        for i in range(0, tot_len, k):
+            for j in range(i,i+k):
+                if j < tot_len:
+                    self.X[j%k].append(X[j])
+        for i in range(k):
+            self.X[i] = np.array(self.X[i])
+            #print self.X[i].T[-1]
 
         # Prepare the data dictionary
         training = {"data":[], "labels":[]}
@@ -36,10 +46,14 @@ class KFolder:
                 t = self.data["training"]["data"][i]
                 for j in range(len(d)):
                     # Normalize the training data
-                    min_val = d[j].min()
-                    d[j] -= min_val
-                    max_val = d[j].max()
-                    d[j] /= max_val
+                    if d[j].min() == d[j].max():
+                        min_val = 0.0
+                        max_val = d[j].max()
+                    else:
+                        min_val = d[j].min()
+                        d[j] -= min_val
+                        max_val = d[j].max()
+                        d[j] /= max_val
                     # Normalize the testing data with the same parameters
                     t[j] -= min_val
                     t[j] /= max_val

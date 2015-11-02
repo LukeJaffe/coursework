@@ -1,5 +1,7 @@
 import numpy as np
 
+missing = float('-inf')
+cont = float('inf')
 
 class Config:
     def __init__(self, n):
@@ -12,9 +14,9 @@ class Config:
 
     def data(self, f, x):
         if x == '?':
-            return -2
+            return missing
         elif not self.d[f]:
-            return -1
+            return cont
         else:
             return self.d[f].index(x)
 
@@ -51,13 +53,21 @@ class Parser:
             X.append([])
             for f,x in enumerate(line[:-1]):
                 r = self.config.data(f,x)
-                if r == -1:
+                if r == cont:
                     X[i].append(float(x))
                 else:
                     X[i].append(self.config.data(f, x)) 
-        Y = np.array(Y)
         X = np.array(X)
-        print X.shape, Y.shape
+        #print X.mean()
+        for f in X.T:
+            present = f[f>missing]
+            f[f==missing] = np.median(present)
+        #print X.mean()
+        # Replace all missing values with feature median
+        Y = np.array(Y, ndmin=2).T
+        #print X.shape, Y.shape
+        D = np.append(X, Y, axis=1)
+        return D
 
 
 if __name__=="__main__":

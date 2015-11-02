@@ -3,18 +3,14 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 
-from kfolder import KFolder
-
+from parse import Parser
+from ucifolder import UCIFolder
 
 class Booster:
-    def __init__(self, data_file):
-        dmat = []
-        f = open(data_file, "r")
-        for line in f:
-            x = line.split(',')
-            x = [float(e) for e in x]
-            dmat.append(x)
-        self.D = np.array(dmat)
+    def __init__(self, config_file, data_file):
+        vote_parser = Parser(config_file, data_file)
+        vote_parser.parse_config()
+        self.D = vote_parser.parse_data()
 
     def prediction(self, feature, thresh):
         h = np.ones_like(feature)
@@ -23,6 +19,7 @@ class Booster:
         return h
 
     def err(self, x, Y, D, threshold):
+        #print zip(x, Y.ravel())
         for t in threshold:
             idx1 = (x <= t).ravel()
             idx2 = (x > t).ravel()
@@ -30,27 +27,17 @@ class Booster:
             y1, y2 = Y[idx1], Y[idx2]
             c1 = (y1 == 0.0).ravel().astype(float)
             c2 = (y2 == 1.0).ravel().astype(float)
-            p = np.dot(c1, d1) + np.dot(c2, d2)
+            p = np.dot(c1, d1) + np.dot(c2, d2)# + 1.0/len(D)
+            #print p
+            if p == 0.0:
+                return
             yield (np.abs(0.5-p), p, t)
         
-    def split_best(self, X, Y, D, threshold):
+    def split(self, X, Y, D, threshold):
         for i,f in enumerate(X.T):
+            #print "f:",i
             best = max(self.err(f, Y, D, threshold[i]))
             yield (best[0], best[1], best[2], i)
-
-    def split_random(self, X, Y, D, threshold):
-        f = np.random.randint(len(X.T))
-        x = X.T[f]
-        i = np.random.randint(len(threshold[f]))
-        t = threshold[f][i]
-        idx1 = (x <= t).ravel()
-        idx2 = (x > t).ravel()
-        d1, d2 = D[idx1], D[idx2]
-        y1, y2 = Y[idx1], Y[idx2]
-        c1 = (y1 == 0.0).ravel().astype(float)
-        c2 = (y2 == 1.0).ravel().astype(float)
-        p = np.dot(c1, d1) + np.dot(c2, d2) 
-        return (np.abs(0.5-p), p, t, f)
 
     def hypothesis(self, classifier, X, thresh=0.0):
         H = np.zeros_like(X.T[0])
@@ -61,7 +48,7 @@ class Booster:
         H[H<thresh] = 0.0
         return H
 
-    def roc(self, X, Y, C, fast=True):
+    def roc(self, X, Y, C, fast=False):
         H = np.zeros_like(X.T[0])
         for a,f,t in C:
             x = X.T[f]
@@ -105,20 +92,16 @@ class Booster:
         round_error = []
         train_error = []
         test_error = []
-        test_auc = []
         # Initialize classifier
         classifier = []
         # Initialize weights
         m = len(X)
         D = np.ones(m)
         D /= float(m)
-        for i in range(1000):
+        for i in range(100):
             # Apply split with weight vector D
-            if False: 
-                split = self.split_best(X, Y, D, threshold)
-                rank, err, thresh, feature = max(split)
-            else:
-                rank, err, thresh, feature = self.split_random(X, Y, D, threshold)
+            split = self.split(X, Y, D, threshold)
+            rank, err, thresh, feature = max(split)
             print rank, err, thresh, feature
             round_error.append((i,err))
             # Calculate update factor
@@ -146,41 +129,33 @@ class Booster:
             e_test = float(c_test)/float(len(Yt))
             print "test:", c_test, '/', len(Yt), ':', e_test
             test_error.append((i, e_test))
-            # Compute test AUC
-            auc = self.auc(T, Yt, classifier)
-            test_auc.append((i, auc))
         # Compute final test ROC
         test_roc = self.roc(T, Yt, classifier, fast=False)
-        return round_error, train_error, test_error, test_auc, test_roc
+        return round_error, train_error, test_error, test_roc
 
     def thresh(self, X):
         thresh = []
         for f in X.T:
             u = np.unique(f)
-            #u = np.append(u, u.max()+1)
-            #u = np.append(u.min()-1, u)
-            thresh.append(u)
+            thresh.append(u[:-1])
         return np.array(thresh)
 
     def train(self, shared=True):
-        k = 10 
-        kfolder = KFolder(self.D, k, normalize=True, shuffle=False)
+        ucifolder = UCIFolder(self.D, normalize=False, shuffle=False)
         self.X_train, self.Y_train = [], []
         self.X_test, self.Y_test, self.P = [], [], []
-        for i in range(1):
+        for c in [80]:#[5,10,15,20,30,50,80]:
             # Get data and labels at fold k
-            X,Y = kfolder.training(i)
+            X,Y = ucifolder.training(c)
+            print X.shape, Y.shape
             # Get the testing data
-            Xi,Yi = kfolder.testing(i)
+            Xi,Yi = ucifolder.testing(c)
             # Solve for the vector of linear factors, W
             return self.boost(X, Y, Xi, Yi, self.thresh(X)) 
 
     def plot(self, result):
-        if False:
-            strat = 'Optimal '
-        else:
-            strat = 'Random '
-        round_error, train_error, test_error, test_auc, test_roc = result
+        strat = 'Optimal '
+        round_error, train_error, test_error, test_roc = result
         # Plot round_error
         x1,y1 = zip(*round_error)
         plt.plot(x1, y1, color='red')
@@ -197,13 +172,6 @@ class Booster:
         plt.xlabel('Iteration Step')
         plt.ylabel('Test/Train Error (Red/Blue Color)')
         plt.show()
-        # Plot test_auc
-        x4,y4 = zip(*test_auc)
-        plt.plot(x4, y4, color='red')
-        plt.title(strat+'Stump: AUC')
-        plt.xlabel('Iteration Step')
-        plt.ylabel('AUC')
-        plt.show()
         # Plot test_roc
         TPR,FPR = test_roc
         plt.plot(FPR, TPR, color='red')
@@ -215,10 +183,13 @@ class Booster:
 
 if __name__=="__main__":
     # Get cmdline args
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-s', help='Shared or separate coveriance matrices.')
-    args = parser.parse_args(sys.argv[1:])
-    data_file = "../data/spambase/spambase.data"
-    booster = Booster(data_file)
+    #parser = argparse.ArgumentParser()
+    #parser.add_argument('-s', help='Shared or separate coveriance matrices.')
+    #args = parser.parse_args(sys.argv[1:])
+    #config_file = '../data/vote/vote.config'
+    #data_file = '../data/vote/vote.data'
+    config_file = '../data/crx/crx.config'
+    data_file = '../data/crx/crx.data'
+    booster = Booster(config_file, data_file)
     result = booster.train()
     booster.plot(result)

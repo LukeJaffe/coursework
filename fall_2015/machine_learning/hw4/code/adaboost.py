@@ -16,7 +16,6 @@ class Booster:
         self.D = np.array(dmat)
 
     def prediction(self, feature, thresh):
-        #print thresh, feature
         h = np.ones_like(feature)
         idx = (feature > thresh).ravel()
         h[idx] = -1.0
@@ -27,6 +26,8 @@ class Booster:
         idx = np.argsort(x)
         for i,j in enumerate(idx):
             guess = np.append(guess, j)
+            if i+1 < len(idx) and x[j] == x[idx[i+1]]:
+                continue
             d1 = D[guess]
             d2 = D[np.setdiff1d(idx, guess, assume_unique=True)]
             s1 = y[guess]
@@ -44,20 +45,20 @@ class Booster:
             w1 = c1*d1
             w2 = c2*d2
             p = sum(w1) + sum(w2)
+            #print (p,x[j]),
             yield (np.abs(0.5-p), p, x[j])
         
     def split(self, X, Y, D):
         for i,f in enumerate(X.T):
-            #print i
+            #print '\n\n',i
+            #print len([e for e in self.err(f, Y, D)])
             best = max(self.err(f, Y, D))
             yield (best[0], best[1], best[2], i)
 
     def hypothesis(self, classifier, X):
         H = np.zeros_like(X.T[0])
         for a,f,t in classifier:
-            #print a
             x = X.T[f]
-            #print self.prediction(x,t)
             H += self.prediction(x, t)*a
         H[H>=0] = 1.0
         H[H<0] = 0.0
@@ -70,11 +71,11 @@ class Booster:
         m = len(X)
         D = np.ones(m)
         D /= float(m)
-        for i in range(100):
+        for i in range(5):
             # Apply split with weight vector D
             split = self.split(X, Y, D)
             rank, err, thresh, feature = max(split)
-            print rank, err, thresh, feature
+            print '\n',rank, err, thresh, feature
             # Calculate update factor
             a = 0.5*np.log((1.0-err)/err)
             # Reproduce hypothesis vector
@@ -91,10 +92,12 @@ class Booster:
             classifier.append((a, feature, thresh))
             # Compute training error
             H_train = self.hypothesis(classifier, X)
-            print "train:",len((H_train==Y.ravel()).nonzero()[0])
+            c_train = len((H_train!=Y.ravel()).nonzero()[0])
+            print "train:", c_train, '/', len(Y), ':', float(c_train)/float(len(Y))
             # Compute testing error
-            H_test = self.hypothesis(classifier, T)
-            print "test:",len((H_test==Yt.ravel()).nonzero()[0])
+            #H_test = self.hypothesis(classifier, T)
+            #c_test = len((H_test!=Yt.ravel()).nonzero()[0])
+            #print "test:", c_test, '/', len(Yt), ':', float(c_test)/float(len(Yt))
 
     def train(self, shared=True):
         k = 10 
@@ -109,7 +112,7 @@ class Booster:
             Xi,Yi = kfolder.testing(i)
 
             # Solve for the vector of linear factors, W
-            self.boost(X[:100], Y[:100], Xi, Yi) 
+            self.boost(X, Y, Xi, Yi) 
 
             # Store the results
             #self.X_train.append(X), self.Y_train.append(Y)

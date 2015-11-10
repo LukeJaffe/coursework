@@ -56,20 +56,31 @@ class UCIFolder:
                     # Clip testing data to [0.0, 1.0] 
                     t[j] = np.clip(t[j], 0.0, 1.0)
 
-    def training(self, c):
-        k = c/5
+    def training(self, c, pool=False):
         data, labels = None, None
-        for i in range(k):
-            if data is None and labels is None:
-                data = self.data["testing"]["data"][i].T
-                labels = self.data["testing"]["labels"][i].T 
-            else:
-                data = np.append(data, self.data["testing"]["data"][i].T, axis=0)
-                labels = np.append(labels, self.data["testing"]["labels"][i].T, axis=0)
+        if not pool:
+            k = c/(100/self.k)
+            for i in range(k):
+                if data is None and labels is None:
+                    data = self.data["testing"]["data"][i].T
+                    labels = self.data["testing"]["labels"][i].T 
+                else:
+                    data = np.append(data, self.data["testing"]["data"][i].T, axis=0)
+                    labels = np.append(labels, self.data["testing"]["labels"][i].T, axis=0)
+        else:
+            k = c/(100/self.k)
+            e = (80-c)/(100/self.k)
+            for i in range(k, e):
+                if data is None and labels is None:
+                    data = self.data["testing"]["data"][i].T
+                    labels = self.data["testing"]["labels"][i].T 
+                else:
+                    data = np.append(data, self.data["testing"]["data"][i].T, axis=0)
+                    labels = np.append(labels, self.data["testing"]["labels"][i].T, axis=0)
         return data, labels
 
     def testing(self, c=20):
-        k = c/5
+        k = c/(100/self.k)
         data, labels = None, None
         for i in range(self.k-1, self.k-k-1, -1):
             if data is None and labels is None:

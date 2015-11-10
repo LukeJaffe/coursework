@@ -31,7 +31,10 @@ class Booster:
             c1 = (y1 == 0.0).ravel().astype(float)
             c2 = (y2 == 1.0).ravel().astype(float)
             p = np.dot(c1, d1) + np.dot(c2, d2)
-            yield (np.abs(0.5-p), p, t)
+            if p == 0.0:
+                yield (1e-5, 0.5, t)
+            else:
+                yield (np.abs(0.5-p), p, t)
         
     def split_best(self, X, Y, D, threshold):
         for i,f in enumerate(X.T):
@@ -72,7 +75,6 @@ class Booster:
             sH = sorted(H[idx])
         else:
             sH = sorted(H)
-        print len(sH)
         for thresh in sH:
             h = H.copy()
             h[h>=thresh] = 1.0
@@ -100,7 +102,7 @@ class Booster:
         #print "AUC:",abs(s)
 
 
-    def boost(self, X, Y, T, Yt, threshold):
+    def boost(self, X, Y, T, Yt, threshold, random=False):
         # Initialize result structures
         round_error = []
         train_error = []
@@ -112,9 +114,14 @@ class Booster:
         m = len(X)
         D = np.ones(m)
         D /= float(m)
-        for i in range(1000):
+        if random:
+            rounds = 1000
+        else:
+            rounds = 100
+        for i in range(rounds):
+            print "Round:",i+1
             # Apply split with weight vector D
-            if False: 
+            if not random: 
                 split = self.split_best(X, Y, D, threshold)
                 rank, err, thresh, feature = max(split)
             else:
@@ -147,8 +154,8 @@ class Booster:
             print "test:", c_test, '/', len(Yt), ':', e_test
             test_error.append((i, e_test))
             # Compute test AUC
-            auc = self.auc(T, Yt, classifier)
-            test_auc.append((i, auc))
+            #auc = self.auc(T, Yt, classifier)
+            #test_auc.append((i, auc))
         # Compute final test ROC
         test_roc = self.roc(T, Yt, classifier, fast=False)
         return round_error, train_error, test_error, test_auc, test_roc
@@ -157,12 +164,10 @@ class Booster:
         thresh = []
         for f in X.T:
             u = np.unique(f)
-            #u = np.append(u, u.max()+1)
-            #u = np.append(u.min()-1, u)
             thresh.append(u)
         return np.array(thresh)
 
-    def train(self, shared=True):
+    def train(self, random=False):
         k = 10 
         kfolder = KFolder(self.D, k, normalize=True, shuffle=False)
         self.X_train, self.Y_train = [], []
@@ -173,7 +178,7 @@ class Booster:
             # Get the testing data
             Xi,Yi = kfolder.testing(i)
             # Solve for the vector of linear factors, W
-            return self.boost(X, Y, Xi, Yi, self.thresh(X)) 
+            return self.boost(X, Y, Xi, Yi, self.thresh(X), random=random) 
 
     def plot(self, result):
         if False:
@@ -216,9 +221,10 @@ class Booster:
 if __name__=="__main__":
     # Get cmdline args
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', help='Shared or separate coveriance matrices.')
+    parser.add_argument('-r', help='Random or not?')
     args = parser.parse_args(sys.argv[1:])
     data_file = "../data/spambase/spambase.data"
     booster = Booster(data_file)
-    result = booster.train()
-    booster.plot(result)
+    if args.r is not None:
+        result = booster.train(random=bool(int(args.r)))
+        booster.plot(result)

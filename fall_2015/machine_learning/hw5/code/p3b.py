@@ -17,7 +17,7 @@ if __name__=="__main__":
 
     # Ridge
     if args.m == 'ridge':
-        clf = linear_model.Ridge(alpha=10)
+        clf = linear_model.Ridge(alpha=10, max_iter = 1000000)
     elif args.m == 'lasso':
         clf = linear_model.Lasso(alpha=0.001, max_iter=1000000, selection='cyclic', positive=True, tol=2)
     clf.fit(train_data, train_labels)

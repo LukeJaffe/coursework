@@ -17,7 +17,7 @@ if __name__=="__main__":
 
     # Do ridge regularization
     gd = GradientDescent(train_data, train_labels)
-    W = gd.logreg_ridge(it=10000)
+    W = gd.logreg_ridge_stoch(it=5000001)
 
     # Evaluate solution
     evaluator = Evaluator([test_data], [test_labels], [W])

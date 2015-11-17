@@ -95,20 +95,64 @@ class GradientDescent:
                     W_best = W.copy()
         return W_best
 
-    def logreg_ridge(self, r=0.5, it=0, l=0.1):
+    def logreg_ridge_batch(self, r=0.05, it=0, l=0.1):
         W_best = None
         acc_max = 0
+        N = len(self.X)
         W = np.random.random(len(self.X.T))
-        for i in range(it):
-            index = np.random.randint(len(self.X))
-            s = np.dot(W, self.X[index])
-            g = 1.0 / (1.0 + np.exp(-s))
-            d = (self.Y[index] - g)*self.X[index]
-            W += r*d
-            if i%1000 == 0:
+        for t in range(it):
+            total_ = 0.0
+            for i in range(N):
+                # wx
+                s = np.dot(W, self.X[i])
+                # h = g(wx)
+                g = 1.0 / (1.0 + np.exp(-s))
+                # (y - h(x))*x
+                d = (g - self.Y[i])*self.X[i]
+                # Penalty term
+                p = (l/N)*W 
+                # Combine terms
+                single_ = d - p
+                # Add to the total
+                total_ += single_
+            # Normalize total
+            total_ /= N
+            # Incorporate learning rate
+            W -= r*total_
+            # Check every 1k iterations
+            if t%10 == 0:
                 acc = self.accuracy(W)
                 if acc > acc_max:
-                    print acc
+                    print "Iteration:",t,"Acc:",acc
                     acc_max = acc
                     W_best = W.copy()
+        return W_best
+
+    def logreg_ridge_stoch(self, r=0.05, it=0, l=0.05):
+        W_best = None
+        acc_max = 0
+        N = len(self.X)
+        W = np.random.random(len(self.X.T))
+        for t in range(it):
+            i = np.random.randint(len(self.X))
+            # wx
+            s = np.dot(W, self.X[i])
+            # h = g(wx)
+            g = 1.0 / (1.0 + np.exp(-s))
+            # (y - h(x))*x
+            d = (g - self.Y[i])*self.X[i]
+            # Penalty term
+            p = (l/N)*W 
+            # Combine terms
+            single_ = d - p
+            # Incorporate learning rate
+            W -= r*single_
+            # Check every 1k iterations
+            if t%1000 == 0:
+                acc = self.accuracy(W)
+                if acc > acc_max:
+                    print "Iteration:",t,"Acc:",acc
+                    acc_max = acc
+                    W_best = W.copy()
+        print "Final:",self.accuracy(W_best)
         return W_best

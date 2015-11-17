@@ -1,7 +1,7 @@
 import numpy as np
 
 class PollutedSpambase:
-    def __init__(self):
+    def __init__(self, index=False):
         train_data_file = "../data/spam_polluted/train_feature.txt"
         test_data_file = "../data/spam_polluted/test_feature.txt"
         train_label_file = "../data/spam_polluted/train_label.txt"

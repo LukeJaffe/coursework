@@ -5,7 +5,7 @@ from sklearn import preprocessing
 from load import load_mnist
 from haar import sample, genbounds, genfeatures
 
-from knn import knn, knn2, knn3, cosine_distance, linear_distance, gaussian_distance, polyd2_distance
+from nn import knn, cosine_distance, gaussian_distance, polyd2_distance
 
 if __name__=="__main__":
     # Load data using specialized script
@@ -29,8 +29,8 @@ if __name__=="__main__":
     test_data = zmscaler.transform(test_data)
 
     # Run knn
-    for d in [cosine_distance, gaussian_distance, polyd2_distance]:
+    for d in [gaussian_distance]:#[cosine_distance, gaussian_distance, polyd2_distance]:
         for k in [1,3,7]:
-            H = knn2(train_data, test_data, train_labels, d=d, k=k)
+            H = knn(train_data, test_data, train_labels, d=d, k=k)
             c = np.sum(test_labels.ravel()==H)
             print "k=%d:" % k, float(c)/float(len(test_labels))

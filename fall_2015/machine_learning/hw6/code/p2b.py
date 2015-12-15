@@ -2,9 +2,7 @@ import sys
 import argparse
 import numpy as np
 from kfolder import KFolder
-
-from nn import knn, relief
-
+from smo2 import gram, tgram, train, test
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-k', help='Kernel')
@@ -19,25 +17,24 @@ for line in f:
     dmat.append(x)
 data = np.array(dmat)
 
-# k-folds 
+# k-folds xvalidation
 k = 10 
-kfolder = KFolder(data, k, standard=True, shuffle=False)
-for i in range(1):
+kfolder = KFolder(data, k, standard=True, shuffle=True)
+for i in range(k-1):
+    print "Fold:", i+1
+    
     # Get data and labels at fold k
-    X,Y = kfolder.training(i)
+    X,Y = kfolder.testing(i+1)
     
     # Get the testing data
     Xi,Yi = kfolder.testing(i)
+    Yi[Yi==0] = -1.0
+    
+    # Train
+    Y[Y==0] = -1.0
+    G, Gi = gram(X), tgram(X, Xi)
+    a, b = train(X, Y.ravel(), G, C=1e-4, tol=1e-4, eps=1e-3)
 
-    # Get top 5 features with relief
-    F = relief(X, Y)
-    print "Features selected:",F
-
-    # Take features suggested by relief
-    X, Xi = X.T[F].T, Xi.T[F].T
-
-    # Run knn
-    for j in [1]:
-        H = knn(X, Xi, Y, k=j)
-        c = np.sum(Yi.ravel()==H)
-        print "k=%d:" % j, float(c)/float(len(Yi))
+    # Test
+    print "Training accuracy:", test(Y, Y, G, a, b)
+    print "Testing accuracy:", test(Y, Yi, Gi, a, b)

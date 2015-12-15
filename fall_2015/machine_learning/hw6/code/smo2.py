@@ -26,6 +26,13 @@ def gram(X, K=K_linear):
             G[i][j] = K(X[i], X[j]) 
     return G
 
+def tgram(train, test, K=K_linear):
+    G = np.zeros((len(train), len(test)))
+    for i in range(len(train)):
+        for j in range(len(test)):
+            G[i][j] = K(train[i], test[j])
+    return G
+
 
 def train(X, Y, G, C=0.01, tol=0.01, eps=1e-5, max_passes=3, K=K_linear):
     """
@@ -124,11 +131,11 @@ def hypothesis(X, w, b):
     return h
 
 
-def test(X, Y, w, b):
+def test(Y, Yi, G, a, b):
     c = 0
-    m = len(X)
+    m = len(Yi)
     for i in range(m):
-        f = np.dot(w,X[i])+b 
-        if f < 0 and Y[i] < 0 or f > 0 and Y[i] > 0:
+        h = dual(G, Y, a, b, i)
+        if h < 0 and Yi[i] < 0 or h > 0 and Yi[i] > 0:
             c += 1
     return float(c)/float(m)

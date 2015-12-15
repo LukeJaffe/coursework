@@ -10,11 +10,24 @@ def K_linear(x1, x2):
     return np.dot(x1,x2)
 
 
-def dual(x, y, a, b, K=K_linear):
-    return a*y*K(x,x) + b
+def dual(G, Y, a, b, j, K=K_linear):
+    m = len(Y)
+    s = 0.0
+    for i in range(m):
+        s += (a[i]*Y[i]*G[i][j] + b)
+    return s
 
 
-def train(X, Y, C=0.01, tol=0.01, eps=1e-5, max_passes=3, K=K_linear):
+def gram(X, K=K_linear):
+    m = len(X)
+    G = np.zeros((m,m))
+    for i in range(m):
+        for j in range(m):
+            G[i][j] = K(X[i], X[j]) 
+    return G
+
+
+def train(X, Y, G, C=0.01, tol=0.01, eps=1e-5, max_passes=3, K=K_linear):
     """
     Input:
         C: regularization parameter
@@ -31,13 +44,15 @@ def train(X, Y, C=0.01, tol=0.01, eps=1e-5, max_passes=3, K=K_linear):
     # Initialize a_i = 0 for all i, b = 0
     a = np.zeros(m)
     b = 0
+    #a = np.random.random(m)
+    #b = np.random.random()
     # Initialize passes = 0
     passes = 0
     while passes < max_passes:
         num_changed_alphas = 0
         for i in range(m):
             # Calculate E_i using (2)
-            E_i = dual(X[i], Y[i], a[i], b) - Y[i]
+            E_i = dual(G, Y, a, b, i) - Y[i]
             # Horrific conditional statment
             if ((Y[i]*E_i < -tol and a[i] < C) or (Y[i]*E_i > tol and a[i] > 0)):
                 # Select j != i randomly
@@ -45,7 +60,7 @@ def train(X, Y, C=0.01, tol=0.01, eps=1e-5, max_passes=3, K=K_linear):
                 while j == i:
                     j = np.random.randint(m)
                 # Calculate E_j using (2)
-                E_j = dual(X[j], Y[j], a[j], b) - Y[j]
+                E_j = dual(G, Y, a, b, j) - Y[j]
                 # Save old a's
                 a_i, a_j = a[i], a[j]
                 # Compute L and H by (10) or (11)
@@ -96,10 +111,7 @@ def train(X, Y, C=0.01, tol=0.01, eps=1e-5, max_passes=3, K=K_linear):
             #print num_changed_alphas
             passes = 0
 
-    w = np.zeros(d)
-    for i in range(m):
-        w += a[i]*Y[i]*X[i]
-    return w, b
+    return a, b
 
 
 def hypothesis(X, w, b):

@@ -40,9 +40,15 @@ def knn(train, test, Y, d=euclidean_distance, k=1):
     result = pool.map(proc, food)
     for i,j,val in result:
         H[i][j] = val
-    idx1 = np.argmin(H, axis=1)
-    idx2 = np.argsort(H, axis=1).T[:k]
-    topk = Y[idx2]
+    if d==euclidean_distance:
+        idx = np.argsort(H, axis=1).T[:k]
+    elif d==cosine_distance:
+        idx = np.argsort(H, axis=1).T[:k]
+    elif d==gaussian_distance:
+        idx = np.argsort(H, axis=1).T[-k:]
+    elif d==polyd2_distance:
+        idx = np.argsort(H, axis=1).T[:k]
+    topk = Y[idx]
     m = mode(topk)
     return m[0].ravel().astype(int)
 
@@ -85,7 +91,7 @@ def kde(train, test, Y, d=gaussian_distance):
                 pC[c] += dist
                 pA += dist
         h = pC/pA
-        H[i] = np.argmin(h)
+        H[i] = np.argmax(h)
     return H
 
 def relief(X, Y, k=100, f=5, d=euclidean_distance):

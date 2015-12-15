@@ -42,8 +42,8 @@ elif args.d == "d":
     test_dataset = load_mnist(path="../data/mnist/", dataset="testing")
 
     # Take a fraction of the data to speed computation
-    train_images, train_labels = sample(train_dataset, 1000)
-    test_images, test_labels = sample(test_dataset, 100)
+    train_images, train_labels = sample(train_dataset, 5000)
+    test_images, test_labels = sample(test_dataset, 1000)
 
     # Get the bounds of the haar rectangles
     bounds = genbounds(28, 28, 100)

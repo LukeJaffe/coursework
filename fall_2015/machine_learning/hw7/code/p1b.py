@@ -29,7 +29,7 @@ if __name__=="__main__":
     test_data = zmscaler.transform(test_data)
 
     # Run knn
-    for d in [gaussian_distance]:#[cosine_distance, gaussian_distance, polyd2_distance]:
+    for d in [cosine_distance, gaussian_distance, polyd2_distance]:
         for k in [1,3,7]:
             H = knn(train_data, test_data, train_labels, d=d, k=k)
             c = np.sum(test_labels.ravel()==H)

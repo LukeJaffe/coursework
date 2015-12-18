@@ -65,7 +65,7 @@ if __name__=="__main__":
     test_dataset = load_mnist(path="../data/mnist/", dataset="testing")
     
     # Take a fraction of the data to speed computation
-    train_images, train_labels = sample(train_dataset, 5000)
+    train_images, train_labels = sample(train_dataset, 1000)
     test_images, test_labels = test_dataset
 
     # Get the bounds of the haar rectangles

@@ -1,20 +1,29 @@
 import numpy as np
 
+def K_polyd2(v1, v2):
+    return np.dot(v1,v2)**2
+
+def K_cosine(v1, v2):
+    return -distance.cosine(v1, v2)
+
+def K_euclidean(v1, v2):
+    return -np.linalg.norm(v2-v1)
 
 def K_rbf(x1, x2):
-    sigma = 1.0
-    return np.exp(-np.linalg.norm(x1-x2)**2 / (2 * (sigma ** 2)))
-
+    #sigma = 1e-3
+    #return x2[0]
+    return np.random.random()
+    #return np.exp(-np.linalg.norm(x1-x2)**2 / (2 * (sigma ** 2)))
 
 def K_linear(x1, x2):
     return np.dot(x1,x2)
 
 
-def dual(x, y, a, b, K=K_linear):
+def dual(x, y, a, b, K=K_rbf):
     return a*y*K(x,x) + b
 
 
-def train(X, Y, C=0.01, tol=0.01, eps=1e-5, max_passes=3, K=K_linear):
+def train(X, Y, C=0.01, tol=0.01, eps=1e-5, max_passes=3, K=K_rbf):
     """
     Input:
         C: regularization parameter

@@ -1,19 +1,19 @@
 #include <stdio.h>
 #include <string.h>
 
-void print_args(int argc, char** argv)
+#define MAX_ARGS    (10)
+
+void PrintArgs(char** argv)
 {
-    int i;
-    if (argc == 0)
-        printf("Input is empty or contains only spaces.\n");
-    else
-        for (i = 0; i < argc; i++)
-        {
-            printf("argv[%d] = '%s'\n", i, argv[i]);
-        }
+    int i = 0;
+    while (argv[i] != NULL)
+    {
+        printf("argv[%d] = '%s'\n", i, argv[i]);
+        i++;
+    }
 }
 
-int get_args(char* in, char** argv, int max_args)
+void ReadArgs(char* in, char** argv, int size)
 {
     char* token;
 
@@ -23,11 +23,16 @@ int get_args(char* in, char** argv, int max_args)
     /* Get first token in input */
     token = strtok(in, delim);
     if (token == NULL)
-        return 0;
+    {
+        argv[0] = NULL;
+        return;
+    }
     argv[0] = strdup(token);
 
+
+    /* Iterate to size-1 to save a spot in array for NULL */
     int i;
-    for (i = 1; i < max_args; i++)
+    for (i = 1; i < size-1; i++)
     {
         /* Get tokens from the input until none remain */
         token = strtok(NULL, delim);
@@ -38,14 +43,15 @@ int get_args(char* in, char** argv, int max_args)
         argv[i] = strdup(token);
     }
 
-    /* Return number of arguments in argv */
-    return i; 
+    /* NULL terminate the array */
+    argv[i] = NULL; 
 }
 
 int main()
 {
     char s[200];
-    char* argv[10];
+
+    char* argv[MAX_ARGS];
     int argc;
 
     /* Read a string from the user */
@@ -56,8 +62,8 @@ int main()
     s[strlen(s)-1] = '\0';
 
     /* Extract arguments and print them */
-    argc = get_args(s, argv, 10);
-    print_args(argc, argv); 
+    ReadArgs(s, argv, MAX_ARGS);
+    PrintArgs(argv); 
 
     return 0;
 }

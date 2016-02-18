@@ -2,6 +2,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 
+/* Fork a child process to execute the ls command
+ * with its output redirected into a pipe */
 void input(int* fds)
 {
     int ret = fork();
@@ -28,6 +30,8 @@ void input(int* fds)
     }
 }
 
+/* Fork a child process to execute the wc command
+ * with its input coming from the other end of the pipe */
 void output(int* fds)
 {
     int ret = fork();
@@ -63,12 +67,15 @@ int main()
         return 1;
     }
 
+    /* Pass the pipe fds to be used by "ls" and "wc" */
     input(fds);
     output(fds);
     
+    /* Parent must close these fds to avoid issues */
     close(fds[0]); 
     close(fds[1]);
 
+    /* Wait for all children to exit, and print message */
     while (1)
     {
         int ret = wait(NULL);

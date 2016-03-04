@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
+#include <fcntl.h>
 
 #include "command.h"
 
@@ -287,7 +288,7 @@ void RunCommand(struct Command* command)
     */
 
     // create pipes 
-    int num_pipes = command->num_sub_commands-1;
+    int num_pipes = command->num_sub_commands+1;
     int** fds_list = malloc(num_pipes*sizeof(int)); 
     for (i = 0; i < num_pipes; i++)
     {
@@ -301,14 +302,21 @@ void RunCommand(struct Command* command)
 
     // i/o redirection
     int read_fd, write_fd; 
+    int read_idx = -1, write_idx = -1;
 
     if (command->stdin_redirect != NULL)
     {
         printf("\nRedirect stdin: %s\n", command->stdin_redirect);
-        read_fd = open(command->stdin_redirect);
+        read_fd = open(command->stdin_redirect, O_RDONLY);
         if (read_fd != -1)
         {
             fds_list[0][0] = read_fd;
+            read_idx = 0;
+        }
+        else
+        {
+            printf("%s: File not found\n", command->stdin_redirect);
+            exit(1);
         }
     }
     else
@@ -320,7 +328,13 @@ void RunCommand(struct Command* command)
         write_fd = creat(command->stdout_redirect, 0660);
         if (write_fd != -1)
         {
-            fds_list[0][1] = write_fd;
+            fds_list[num_pipes-1][1] = write_fd;
+            write_idx = num_pipes-1;
+        }
+        else
+        {
+            printf("%s: Cannot create file\n", command->stdout_redirect);
+            exit(1);
         }
     }
     else
@@ -330,7 +344,7 @@ void RunCommand(struct Command* command)
     if (command->num_sub_commands == 1)
     {
         //printf("\nCommand without piping.\n");
-        RunSubCommand(fds_list, -1, -1, num_pipes, command->sub_commands[0].argv);
+        RunSubCommand(fds_list, read_idx, write_idx, num_pipes, command->sub_commands[0].argv);
     }
     else
     {

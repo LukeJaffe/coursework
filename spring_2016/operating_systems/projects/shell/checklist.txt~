@@ -1,0 +1,10 @@
+checklist:
+[x] 1. shell prompt &
+[] 2. foreground requirement
+[] 3. background requirement
+[] 4. sub-command not found
+[] 5. input redirection
+[] 6. output redirection
+[x] 7. sub-command piping
+
+bonus:

@@ -1,8 +1,11 @@
 #include <stdlib.h>
-#include <stdbool.h>
 #include <fcntl.h>
 
 #include "command.h"
+
+#define NUM_PIPE_FDS    (2)
+
+void RunCommand(struct Command* command, int fd);
 
 void PrintArgs(char** argv)
 {
@@ -217,7 +220,7 @@ void ReadRedirectAndBackground(struct Command* command)
 }
 
 /* Run a subcommand and handle piping */
-void RunSubCommand(int** fds_list, int idx1, int idx2, int num_pipes, char** argv)
+int RunSubCommand(int** fds_list, int idx1, int idx2, int num_pipes, char** argv)
 {
     int ret = fork();
     if (ret < 0)
@@ -235,12 +238,14 @@ void RunSubCommand(int** fds_list, int idx1, int idx2, int num_pipes, char** arg
                 close(fds_list[i][1]);
                 close(0);
                 dup(fds_list[i][0]);
+                close(fds_list[i][0]);
             }
             else if (i == idx2)
             {
                 close(fds_list[i][0]);
                 close(1);
                 dup(fds_list[i][1]);
+                close(fds_list[i][1]);
             }
             else
             {
@@ -252,61 +257,53 @@ void RunSubCommand(int** fds_list, int idx1, int idx2, int num_pipes, char** arg
         if (execvp(argv[0], argv) == -1)
         {
             printf("%s: Command not found\n", argv[0]);
-        }
-    }
-    else
-    {
-        // nothing
-    }
-}
-
-void RunCommand(struct Command* command)
-{
-    // Check if line is empty
-    int i;
-    if (command->num_sub_commands == 0)
-    {
-        //printf("Empty command.\n");
-        return;
-    }
-
-    // Check if line starts with <, >, & 
-    if (command->sub_commands[0].argv[0] == NULL)
-    {
-        printf("Invalid command.\n");
-        return;
-    }
-
-    
-
-    // background
-    /*
-    if (command->background)
-        printf("Background: yes\n");
-    else
-        printf("Background: no\n");
-    */
-
-    // create pipes 
-    int num_pipes = command->num_sub_commands+1;
-    int** fds_list = malloc(num_pipes*sizeof(int)); 
-    for (i = 0; i < num_pipes; i++)
-    {
-        fds_list[i] = malloc(2*sizeof(int));
-        if (pipe(fds_list[i]) == -1)
-        {
-            perror("pipe");
             return;
         }
     }
+    else
+    {
+        return ret;
+    }
+}
 
-    // i/o redirection
+void RunCommand(struct Command* command, int fd)
+{
+    int i;
+
+    /* Check if line is empty */
+    if (command->num_sub_commands == 0)
+    {
+        return;
+    }
+
+    /* Check if line starts with <, >, & */
+    if (command->sub_commands[0].argv[0] == NULL)
+    {
+        printf("Invalid command.\n");
+        exit(1);
+    }
+
+
+    /* Create pipes */
+    int num_pipes = command->num_sub_commands+1;
+    int** fds_list = malloc(num_pipes*sizeof(int*)); 
+    for (i = 0; i < num_pipes; i++)
+    {
+        fds_list[i] = malloc(NUM_PIPE_FDS*sizeof(int));
+        if (pipe(fds_list[i]) == -1)
+        {
+            perror("pipe");
+            exit(1);
+        }
+    }
+
+    /* I/O redirection */
     int read_fd, write_fd; 
     int read_idx = -1, write_idx = -1;
 
+    /* Check stdin redirect */
     if (command->stdin_redirect != NULL)
     {
-        printf("\nRedirect stdin: %s\n", command->stdin_redirect);
         read_fd = open(command->stdin_redirect, O_RDONLY);
         if (read_fd != -1)
         {
@@ -316,15 +313,13 @@ void RunCommand(struct Command* command)
         else
         {
             printf("%s: File not found\n", command->stdin_redirect);
-            exit(1);
+            return;
         }
     }
-    else
-        printf("\nRedirect stdin: NULL\n");
 
+    /* Check stdout redirect */
     if (command->stdout_redirect != NULL)
     {
-        printf("Redirect stdout: %s\n", command->stdout_redirect);
         write_fd = creat(command->stdout_redirect, 0660);
         if (write_fd != -1)
         {
@@ -334,27 +329,34 @@ void RunCommand(struct Command* command)
         else
         {
             printf("%s: Cannot create file\n", command->stdout_redirect);
-            exit(1);
+            return;
         }
     }
-    else
-        printf("Redirect stdout: NULL\n");
 
-    // execute sub-commands
+    /* Execute sub-commands */
+    int pid;
     if (command->num_sub_commands == 1)
     {
-        //printf("\nCommand without piping.\n");
-        RunSubCommand(fds_list, read_idx, write_idx, num_pipes, command->sub_commands[0].argv);
+        pid = RunSubCommand(fds_list, read_idx, write_idx, num_pipes, command->sub_commands[0].argv);
     }
     else
     {
-        //printf("\nCommand has # pipes: %d\n", num_pipes);
-        RunSubCommand(fds_list, -1, 0, num_pipes, command->sub_commands[0].argv);
-        for (i = 0; i < num_pipes-1; i++)
+        RunSubCommand(fds_list, read_idx, 1, num_pipes, command->sub_commands[0].argv);
+        for (i = 1; i < num_pipes-2; i++)
         {
-            RunSubCommand(fds_list, i, i+1, num_pipes, command->sub_commands[i+1].argv);
+            RunSubCommand(fds_list, i, i+1, num_pipes, command->sub_commands[i].argv);
         }
-        RunSubCommand(fds_list, num_pipes-1, -1, num_pipes, command->sub_commands[num_pipes].argv);
+        pid = RunSubCommand(fds_list, num_pipes-2, write_idx, num_pipes, command->sub_commands[num_pipes-2].argv);
+
+    }
+    
+    /* If this command should be executing in the background, send pid of
+     * last subcommand to parent */
+    if (command->background)
+    {
+        char buffer[10];
+        sprintf(buffer, "%d", pid);
+        write(fd, buffer, sizeof(buffer));
     }
 
     /* Parent must close all fds to avoid issues */
@@ -364,13 +366,41 @@ void RunCommand(struct Command* command)
         close(fds_list[i][1]);
     }
 
-    /* Wait for all children to exit, and print message */
+    /* Wait for all children to exit */
     while (1)
     {
         int ret = wait(NULL);
         if (ret == -1)
             break;
-        //else
-        //    printf("Process %d finished\n", ret);
+    }
+}
+
+/* Run a command in the background */
+void RunCommandBackground(struct Command* command)
+{
+    int fds[2];
+    if (pipe(fds) == -1)
+    {
+        perror("pipe");
+        exit(1);
+    }
+
+    int ret = fork();
+    if (ret < 0)
+    {
+        perror("fork");
+        exit(1);
+    }
+    else if (ret == 0)
+    {
+        RunCommand(command, fds[1]);
+    }
+    else
+    {
+        /* Parent should wait until it receives pid of last child
+         * subcommand before printing next prompt */
+        char buffer[10];
+        read(fds[0], buffer, sizeof(buffer));
+        printf("[%s]\n", buffer);
     }
 }

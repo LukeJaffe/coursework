@@ -1,0 +1,15 @@
+Created by: Luke Jaffe
+
+Features implemented:
+1. All minimum requirements
+2. Read characters individually as they are pressed
+3. Left and right arrow keys navigate current input
+4. Backspace works normally (but not delete)
+5. Command history implemented
+    -Up and down arrow keys navigate history
+
+*NOTE
+-Key code mappings are system dependent, so there may be issues
+with some keystrokes, especially backspace
+
+Also, this terminal is vulnerable to buffer overflow ;)

@@ -1,0 +1,10 @@
+Created by: Luke Jaffe
+
+Directory "stable" contains a working version of the code.
+
+Directory "bonus" contains a mostly working version of the code
+with "history" ability implemented from up/down arrow keys. The
+bug I encountered is incomprehensible... a char array is occasionally 
+overwritten when the getchar() function is called. This must have 
+something to do with the non-canonical setting I enabled. ncurses 
+would have been easier...

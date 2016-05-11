@@ -22,9 +22,13 @@ class Booster:
             yield (np.abs(0.5-p), p, t)
         
     def split_best(self, X, Y, D, threshold):
+        idx = np.array(range(len(X.T)))
+        np.random.shuffle(idx)
+        idx = idx[:20]
         for i,f in enumerate(X.T):
-            best = max(self.err(f, Y, D, threshold[i]))
-            yield (best[0], best[1], best[2], i)
+            if i in idx:
+                best = max(self.err(f, Y, D, threshold[i]))
+                yield (best[0], best[1], best[2], i)
 
     def split_random(self, X, Y, D, threshold):
         f = np.random.randint(len(X.T))
@@ -91,12 +95,12 @@ class Booster:
         D = np.ones(m)
         D /= float(m)
         for i in range(rounds):
-            print "Round:",i
+            #print "Round:",i
             # Apply split with weight vector D
             if random:
                 rank, err, thresh, feature = self.split_random(X, Y, D, threshold)
             else:
-                split = self.split(X, Y, D, threshold)
+                split = self.split_best(X, Y, D, threshold)
                 rank, err, thresh, feature = max(split)
             #print rank, err, thresh, feature
             # Calculate update factor
@@ -116,7 +120,7 @@ class Booster:
         H_train = self.hypothesis(classifier, X)
         c_train = len((H_train!=Y.ravel()).nonzero()[0])
         train_error = float(c_train)/float(len(Y))
-        print "Train error:", train_error
+        print "Train accuracy:", train_error
         # Compute testing error
         H_test = self.hypothesis(classifier, T)
         #c_test = len((H_test!=Yt.ravel()).nonzero()[0])

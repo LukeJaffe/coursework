@@ -1,3 +1,5 @@
+import sys
+import argparse
 import numpy as np
 
 class Gaussian:
@@ -58,7 +60,10 @@ class EMGM:
             sigma /= mu_bot
             sigma += np.eye(d)*1e-5
             self.model[i] = Gaussian(mu, sigma, pi)
-            print "Gaussian",i,":",sum(self.Z[i]), self.model[i].mu, self.model[i].sigma
+            print "Gaussian",i+1,":"
+            print "Elements:",sum(self.Z[i]),"(soft membership)"
+            print "Mean:",self.model[i].mu
+            print "Covariance:",self.model[i].sigma
 
     def expectation(self):
         m,d = self.D.shape
@@ -76,9 +81,23 @@ class EMGM:
 
 
 if __name__=="__main__":
+    # Data files
     fname1 = '../data/mog/2gaussian.txt'
     fname2 = '../data/mog/3gaussian.txt'
-    emgm = EMGM(fname2, 3) 
+
+    # Get cmdline args
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-g', help='Case with n gaussians: {2,3}')
+    args = parser.parse_args(sys.argv[1:])
+    if int(args.g) == 2:
+        emgm = EMGM(fname1, 2) 
+    elif int(args.g) == 3:
+        emgm = EMGM(fname2, 3) 
+    else:
+        print "Invalid number of gaussian selected: options = {2,3}"
+
+    # Run EM
     for i in range(100):
+        print "Iteration %d" % (i+1) 
         emgm.maximization()
         emgm.expectation()

@@ -37,22 +37,25 @@ class GradientDescent:
         return W
 
     def linreg_stoch1(self, r=1e-6):
+        W_best = None
+        mse_best = float("inf")
         W = np.random.random(len(self.X.T))
-        for i in range(20000001):
+        for i in range(10000001):
             index = np.random.randint(len(self.X))
             h = np.dot(W, self.X[index])
             d = (h-self.Y[index])*self.X[index]
             W -= r*d
-            if i%100000 == 0:
+            if i%10000 == 0:
                 sse = 0.0
                 for t in range(len(self.X)):
                     s = np.dot(W, self.X[t])
                     sse += (s-self.Y[t])**2.0
                 mse = sse/float(len(self.X))
-                if mse < 25:
-                    print i
-                    return W
-        return W
+                if mse < mse_best:
+                    mse_best = mse
+                    W_best = W.copy()
+                    print i, mse
+        return W_best
 
     def linreg_stoch2(self, r=0.06):
         W_best = None

@@ -23,7 +23,7 @@ class Perceptron:
                 if np.dot(x,W) < 0:
                     M.append(x)
             total_mistake = len(M)
-            print "Iteration %d, total_mistake %d" % (iterations+1, total_mistake)
+            print "Iteration %d, total_mistake %d" % (iterations, total_mistake)
             s = 0.0
             for m in M:
                 s += m
@@ -36,4 +36,4 @@ if __name__=="__main__":
     data_file = "../data/perceptron/perceptronData.txt"
     data = Data(data_file)
     p = Perceptron(data)
-    p.train(r=float(sys.argv[1]))
+    p.train()#r=float(sys.argv[1]))

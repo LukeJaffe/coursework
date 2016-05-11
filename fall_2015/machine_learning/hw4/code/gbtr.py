@@ -210,7 +210,7 @@ if __name__=="__main__":
     parser.add_argument('-d', help='Run regression on this dataset.')
     args = parser.parse_args(sys.argv[1:])
     if args.d is None:
-        depth = 2
+        depth = 5
     else:
         depth = int(args.d)
     train_file = "../data/housing/housing_train.txt"

@@ -107,7 +107,7 @@ class DecisionTree:
                         else:
                             IG_prev = IG_curr
                         # Check if entropy for any branches is below thresh
-                        IG_list.append((IG_curr,f,t,d,B,C,s_B,s_C))
+                        IG_list.append((IG_curr,f,t,d,B.copy(),C.copy(),s_B,s_C))
                 i += 1
 
         if IG_list == []:
@@ -195,7 +195,6 @@ class RegressionTree:
             B = BitArray(bin=s)
             C = A.copy()
             i = 0
-            gain_prev = 0.0
             # Threshold emulator loop
             while i < len(pairs)-1:
                 if A[pairs[i][0]]:
@@ -206,23 +205,10 @@ class RegressionTree:
                         # Calculate MSE for the split
                         mse_curr = self.mse([B,C])
                         gain_curr = mse_A - mse_curr
-                        if gain_curr < 0:
-                            print gain_curr
-                        #print mse_curr
-                        if gain_curr < gain_prev:
-                            break
-                        else:
-                            gain_prev = gain_curr
                         # Check if entropy for any branches is below thresh
-                        gain_list.append((gain_curr,f,t,d,B,C,mse_A,mse_curr))
+                        gain_list.append((gain_curr,f,t,d,B.copy(),C.copy(),mse_A,mse_curr))
                 i += 1
 
-        #if B.count(True) == 0 or C.count(True) == 0:
-        #    print "Count of B or C = 0"
-        #    return None,None,d,None,None
-        #if self.mse([B]) > mse_A or self.mse([C]) > mse_A:
-        #    print "MSE of split greater than parent"
-        #    return None,None,d,None,None
         if gain_list == []:
             print "mse_list empty"
         #    return None,None,d,None,None
@@ -363,7 +349,7 @@ class HousingLearner:
 
     def train(self):
         rt = RegressionTree(self.X_train, self.Y_train)
-        self.T = rt.build(5)
+        self.T = rt.build(3)
 
     def test(self):
         # Training error

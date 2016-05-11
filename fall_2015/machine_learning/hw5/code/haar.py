@@ -109,7 +109,7 @@ if __name__=="__main__":
     train_dataset = load_mnist(path="../data/mnist/", dataset="training")
     test_dataset = load_mnist(path="../data/mnist/", dataset="testing")
     # Take a fraction of the data to speed computation
-    train_images, train_labels = sample(train_dataset, 5000)
+    train_images, train_labels = sample(train_dataset, 1000)
     #for i in range(10):
     #    print len(train_labels[train_labels==i])
     test_images, test_labels = test_dataset
@@ -120,7 +120,7 @@ if __name__=="__main__":
     train_data = genfeatures(train_images, bounds)
     test_data = genfeatures(test_images, bounds)
     # Generate 50 random ECOC vectors
-    codes = np.random.randint(0,2,size=(44,10)).astype(bool)
+    codes = np.random.randint(0,2,size=(11,10)).astype(bool)
 
     # Iterate through each ECOC
     pool = Pool(processes=11) 
@@ -128,6 +128,7 @@ if __name__=="__main__":
     ordered = zip(*sorted(result))
     H_train = ordered[1]
     H_test = ordered[2]
+    #print H_train
 
     # Compare distance of code to codes and classify
     print "Training accuracy:", evaluate(H_train, train_labels, codes)

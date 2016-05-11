@@ -158,7 +158,7 @@ class NB:
         kfolder = KFolder(self.D, k, normalize=True, shuffle=False)
         self.X_train, self.Y_train = [], []
         self.X_test, self.Y_test, self.P = [], [], []
-        for i in range(1):
+        for i in range(k):
             # Get data and labels at fold k
             X,Y = kfolder.training(i)
 
@@ -211,7 +211,7 @@ class NB:
         histograms,p = Pi
         return histograms[k].prob(Xi[j][k])
 
-    def predict(self, Xi, Yi, Pi, method, error=True, roc=True):
+    def predict(self, Xi, Yi, Pi, method, accuracy=False, error=False, roc=False, label='default'):
         if method == 'gaussian':
             predict_func = self.predict_gaussian
         elif method == 'bernoulli':
@@ -232,6 +232,7 @@ class NB:
                 e[0] *= e0 
                 e[1] *= e1
             likelihood.append((e[0]*p[0], e[1]*p[1]))
+        # Draw ROC curve and calculated AUC
         if roc:
             thresh = []
             for i,l in enumerate(likelihood):
@@ -249,15 +250,14 @@ class NB:
                 tpr = float(tp) / (float(tp)+float(fn)) 
                 fpr = float(fp) / (float(fp)+float(tn)) 
                 TPR.append(tpr), FPR.append(fpr)
-            plt.plot(FPR, TPR, label='label')
+            plt.plot(FPR, TPR, label=label)
             plt.axis([0.0,1.0,0.0,1.0])
             s = 0.0 
             for k in range(2,m):
                 s += ((FPR[k]-FPR[k-1])*(TPR[k]+TPR[k-1])) 
             s *= 0.5
-            print abs(s)
-            return 0.0
-
+            return abs(s)
+        # Calculate error
         if error:
             tp, tn, fp, fn = 0, 0, 0, 0
             for i,l in enumerate(likelihood):
@@ -269,8 +269,9 @@ class NB:
             tpr = float(tp) / (float(tp)+float(fn)) 
             fpr = float(fp) / (float(fp)+float(tn)) 
             err = float(fp+fn) / float(m)
-            return err
-        if True:
+            return tpr,fpr,err
+        # Calculate accuracy
+        if accuracy:
             for i,l in enumerate(likelihood):
                 y = 1 if l[1]>l[0] else 0
                 c += 1 if y==Yi[i] else 0
@@ -278,38 +279,72 @@ class NB:
             print c,"/",m,":",acc
             return acc
 
-    def evaluate(self, X, Y, P, method, roc=False):
-        tacc = 0.0
-        for i in range(len(X)):
-            acc = self.predict(X[i], Y[i], P[i], method, roc=roc)
-            tacc += acc
-        print "total:",tacc/float(len(X))
+    def evaluate(self, X, Y, P, method, accuracy=False, error=False, roc=False, label='default'):
+        k = len(X)
+        if accuracy:
+            tacc = 0.0
+            for i in range(k):
+                acc = self.predict(X[i], Y[i], P[i], method, accuracy=True)
+                tacc += acc
+            print "total:",tacc/float(len(X))
+        elif error:
+            ttpr, tfpr, terr = 0.0, 0.0, 0.0
+            for i in range(k):
+                tpr,fpr,err = self.predict(X[i], Y[i], P[i], method, error=True)
+                print "Fold %d: TPR=%f, FPR=%f, Error=%f" % (i+1, tpr, fpr, err)
+                ttpr += tpr
+                tfpr += fpr
+                terr += err
+            print "Average accross k folds: TPR=%f, FPR=%f, Error=%f" % (ttpr/float(k), tfpr/float(k), terr/float(k))
+        elif roc:
+            auc = self.predict(X[0], Y[0], P[0], method, roc=True, label=label)
+            print "AUC:", auc
 
 
-    def test(self, method=None):
+    def test(self, method=None, accuracy=False, error=False, roc=False, label='default'):
         # Training error
-        print "Training accuracy:"
-        evaluator = self.evaluate(self.X_train, self.Y_train, self.P, method)
-        print "Testing accuracy:"
-        evaluator = self.evaluate(self.X_test, self.Y_test, self.P, method, roc=True)
-        # Plot the ROC curve
-        plt.title('Comparison of ROC for Regression Methods on Spam Data')
-        plt.xlabel('False Positive Rate')
-        plt.ylabel('True Positive Rate')
-        legend = plt.legend(loc='lower right', shadow=True)
-        plt.show()
+        if not roc:
+            print "Training error:"
+            evaluator = self.evaluate(self.X_train, self.Y_train, self.P, method,
+                                        accuracy=accuracy, error=error, roc=roc)
+        print "Testing error:"
+        evaluator = self.evaluate(self.X_test, self.Y_test, self.P, method,
+                                    accuracy=accuracy, error=error, roc=roc, label=label)
 
 
 if __name__=="__main__":
     # Get cmdline args
     parser = argparse.ArgumentParser()
     parser.add_argument('-m', help='Select the method for performing naive bayes: {bernoulli, gaussian, histogram}')
-    parser.add_argument('-b', help='Select the number of bins for histogram method: [int]')
+    parser.add_argument('-b', help='Select the number of bins for histogram method: {4, 9}')
+    parser.add_argument('-e', help='Select the algorithm evaluation method: {acc, err, roc}')
     args = parser.parse_args(sys.argv[1:])
     if args.b is None:
         args.b = 0
     data_file = "../data/spambase/spambase.data"
     # Do naive bayes estimation
-    nb = NB(data_file)
-    nb.train(method=args.m, bins=int(args.b))
-    nb.test(method=args.m)
+    if args.m == "all":
+        nb = NB(data_file)
+        # Find ROC for all methods
+        print "*Bernoulli*"
+        nb.train(method="bernoulli")
+        nb.test(method="bernoulli", roc=True, label='Bernoulli')
+        print "*Gaussian*"
+        nb.train(method="gaussian")
+        nb.test(method="gaussian", roc=True, label='Gaussian')
+        print "*Histogram(4)*"
+        nb.train(method="histogram", bins=4)
+        nb.test(method="histogram", roc=True, label='Histogram (4 bins)')
+        print "*Histogram(9)*"
+        nb.train(method="histogram", bins=9)
+        nb.test(method="histogram", roc=True, label='Histogram (9 bins)')
+        # Plot the ROC curves
+        plt.title('Comparison of ROC for Naive Bayes Methods on Spam Data')
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        legend = plt.legend(loc='lower right', shadow=True)
+        plt.show()
+    else:
+        nb = NB(data_file)
+        nb.train(method=args.m, bins=int(args.b))
+        if args.e == 'acc':

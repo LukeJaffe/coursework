@@ -48,7 +48,7 @@ class Evaluator:
         print "Average accuracy:", acc
 
     def confusion(self):
-        tTPR, tFPR = 0.0, 0.0
+        tTPR, tFPR, tacc = 0.0, 0.0, 0.0
         k = len(self.X)
         for i in range(k):
             # Test solution against the testing data
@@ -70,10 +70,12 @@ class Evaluator:
                     TN += 1
             TPR = float(TP) / (float(TP)+float(FN)) 
             FPR = float(FP) / (float(FP)+float(TN)) 
+            acc = float(TP+TN) / float(len(Xi))
             tTPR += TPR
             tFPR += FPR
-            print "Fold %d:" % (i+1),TPR, FPR
-        print "Total:", tTPR/float(k), tFPR/float(k)
+            tacc += acc
+            print "Fold %d:" % (i+1),"TPR =",TPR, ", FPR =", FPR, ", Accuracy =",acc
+        print "Total:", "TPR =",tTPR/float(k), ", FPR =",tFPR/float(k), ", Accuracy =",acc/float(k)
 
     def roc(self):
         X,Y,W = self.X[0], self.Y[0], self.W[0] 

@@ -5,10 +5,7 @@ class KFolder:
         self.k = k
         self.X = []
         if shuffle:
-            print "shuffling"
             np.random.shuffle(X)
-        else:
-            print "not shuffling"
         tot_len = len(X)
         fold_len = tot_len/k
         #for i in range(0, tot_len, fold_len):

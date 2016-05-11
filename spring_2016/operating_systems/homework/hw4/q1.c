@@ -102,6 +102,21 @@ void ReadCommand(char* line, struct Command* command)
 
 void PrintCommand(struct Command* command)
 {
+
+    /* Check if line is empty */
+    if (command->num_sub_commands == 0)
+    {
+        printf("Empty command.\n");
+        return;
+    }
+     
+    /* Check if line starts with <, >, & */
+    if (command->sub_commands[0].argv[0] == NULL)
+    {
+        printf("Invalid command.\n");
+        return;
+    }
+
     int i;
     for (i = 0; i < command->num_sub_commands; i++)
     {
@@ -125,43 +140,53 @@ void PrintCommand(struct Command* command)
         printf("Background: no\n");
 }
 
+/* This function does not handle all possible corner cases, 
+ * but correctly performs all tasks in the problem statement */
 void ReadRedirectAndBackground(struct Command* command)
 {
-    command->stdin_redirect = NULL;
-    command->stdout_redirect = NULL;
-    command->background = 0;
-
+    const char left_carrot[2] = "<";
+    const char right_carrot[2] = ">";
+    const char ampersand[2] = "&";
+    
     unsigned int left_carrot_flag = 0;
     unsigned int right_carrot_flag = 0;
 
     unsigned int end_index_flag = 0;
     unsigned int end_index = 0;
 
-    const char left_carrot[2] = "<";
-    const char right_carrot[2] = ">";
-    const char ampersand[2] = "&";
-    
     char** argv; 
+
+    /* Default redirection, background fields */
+    command->stdin_redirect = NULL;
+    command->stdout_redirect = NULL;
+    command->background = 0;
+
+    /* Check if empty line */
     if (command->num_sub_commands == 0)
         return;
     else
         argv = command->sub_commands[command->num_sub_commands-1].argv;
 
+    /* Iterate through all tokens in last subcommand */
     int i = 0;
     while (argv[i] != NULL)
     {
         if (left_carrot_flag)
         {
+            /* If previous token was <, this token is file */
             command->stdin_redirect = strdup(argv[i]);
             left_carrot_flag = 0;     
         }
         else if (right_carrot_flag)
         {
+            /* If previous token was >, this token is file */
             command->stdout_redirect = strdup(argv[i]);
             right_carrot_flag = 0;     
         }
         else
         {
+            /* Check for <, >, and set flag to indicate if found.
+             * Mark where first special character is found. */
             if (strcmp(argv[i], left_carrot) == 0)
             {
                 left_carrot_flag = 1;
@@ -180,10 +205,19 @@ void ReadRedirectAndBackground(struct Command* command)
                     end_index = i;
                 }
             }
+            else if (strcmp(argv[i], ampersand) == 0)
+            {
+                if (!end_index_flag)
+                {
+                    end_index_flag = 1;
+                    end_index = i;
+                }
+            }
         }
         i++;
     }
 
+    /* Check if last character is & */
     if (i > 0) 
     {
         if (strcmp(argv[i-1], ampersand) == 0)
@@ -192,6 +226,7 @@ void ReadRedirectAndBackground(struct Command* command)
             command->background = 0;
     }
 
+    /* NULL terminate the final subcommand where special characters begin */
     argv[end_index] = NULL;
 }
 

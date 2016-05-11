@@ -4,7 +4,7 @@
 
 /* Fork a child process to execute the ls command
  * with its output redirected into a pipe */
-void input(int* fds)
+void input(int* fds1, int* fds2)
 {
     int ret = fork();
     if (ret < 0)
@@ -14,9 +14,11 @@ void input(int* fds)
     }
     else if (ret == 0)
     {
-        close(fds[0]);
+        close(fds2[0]);
+        close(fds2[1]);
+        close(fds1[0]);
         close(1);
-        dup(fds[1]);
+        dup(fds1[1]);
 
         char* argv[3];
         argv[0] = "ls";
@@ -32,7 +34,7 @@ void input(int* fds)
 
 /* Fork a child process to execute the wc command
  * with its input coming from the other end of the pipe */
-void output(int* fds)
+void output(int* fds1, int* fds2)
 {
     int ret = fork();
     if (ret < 0)
@@ -42,13 +44,49 @@ void output(int* fds)
     }
     else if (ret == 0)
     {
-        close(fds[1]);
+        close(fds1[0]);
+        close(fds1[1]);
+        close(fds2[1]);
         close(0);
-        dup(fds[0]);
+        dup(fds2[0]);
 
-        char* argv[2];
+        char* argv[3];
         argv[0] = "wc";
-        argv[1] = NULL;
+        argv[1] = "-l";
+        argv[2] = NULL;
+        execvp(argv[0], argv);
+    }
+    else
+    {
+        //nothing
+    }
+}
+
+/* Fork a child process to execute the wc command
+ * with its input coming from the other end of the pipe */
+void middle(int* fds1, int* fds2)
+{
+    int ret = fork();
+    if (ret < 0)
+    {
+        perror("fork");
+        exit(1);
+    }
+    else if (ret == 0)
+    {
+        close(fds1[1]);
+        close(fds2[0]);
+
+        close(0);
+        dup(fds1[0]);
+
+        close(1);
+        dup(fds2[1]);
+
+        char* argv[3];
+        argv[0] = "head";
+        argv[1] = "-n 5";
+        argv[2] = NULL;
         execvp(argv[0], argv);
     }
     else
@@ -59,8 +97,18 @@ void output(int* fds)
 
 int main()
 {
-    int fds[2];
-    int err = pipe(fds);
+    int** fds_list = malloc(2*sizeof(int));
+    fds_list[0] = malloc(2*sizeof(int)); 
+    fds_list[1] = malloc(2*sizeof(int)); 
+
+    int err = pipe(fds_list[0]);
+    if (err == -1)
+    {
+        perror("pipe");
+        return 1;
+    }
+
+    err = pipe(fds_list[1]);
     if (err == -1)
     {
         perror("pipe");
@@ -68,12 +116,15 @@ int main()
     }
 
     /* Pass the pipe fds to be used by "ls" and "wc" */
-    input(fds);
-    output(fds);
+    input(fds_list[0], fds_list[1]);
+    middle(fds_list[0], fds_list[1]);
+    output(fds_list[0], fds_list[1]);
     
     /* Parent must close these fds to avoid issues */
-    close(fds[0]); 
-    close(fds[1]);
+    close(fds_list[0][0]); 
+    close(fds_list[0][1]);
+    close(fds_list[1][0]); 
+    close(fds_list[1][1]);
 
     /* Wait for all children to exit, and print message */
     while (1)

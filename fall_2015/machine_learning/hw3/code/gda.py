@@ -94,9 +94,9 @@ class GDA:
                 y = 1 if l1>l0 else 0
                 c += 1 if y==Y[i][j] else 0
             acc = float(c)/float(len(X[0]))
-            print c,"/",len(X[0]),":",acc
+            print "Fold %d:" % (i+1),acc
             tacc += acc
-        print "total:",tacc/float(len(X))
+        print "Average across k folds:",tacc/float(len(X))
 
 
     def test(self, shared=True):
